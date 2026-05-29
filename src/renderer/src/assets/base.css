@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Kolory bazowe */
+  --color-bg-main: #0b0c10;
+  --color-bg-secondary: #12141a;
+  --color-bg-surface: rgba(26, 28, 35, 0.6);
+  --color-bg-surface-hover: rgba(36, 39, 49, 0.8);
+
+  --color-primary: #45f3ff;
+  --color-primary-glow: rgba(69, 243, 255, 0.4);
+  --color-secondary: #6b4ee6;
+  --color-secondary-glow: rgba(107, 78, 230, 0.4);
+
+  --color-success: #00e676;
+  --color-warning: #ffc400;
+  --color-error: #ff3d00;
+
+  /* Tekst */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-muted: rgba(255, 255, 255, 0.4);
+
+  /* Obramowania i Glassmorphism */
+  --border-glass: 1px solid rgba(255, 255, 255, 0.08);
+  --border-glow: 1px solid rgba(69, 243, 255, 0.3);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --backdrop-blur: blur(12px);
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-full: 999px;
+
+  /* Typografia */
+  --font-main: 'Outfit', sans-serif;
+
+  /* Animacje */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-main);
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(107, 78, 230, 0.15), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(69, 243, 255, 0.1), transparent 25%);
+  font-family: var(--font-main);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+ul {
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}

@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime       @default(now())
+  sessions     Session[]
+  logins       LoginHistory[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  loginAt   DateTime @default(now())
+}
+
+model Software {
+  id             String          @id @default(uuid())
+  wingetId       String?         @unique
+  name           String
+  description    String?
+  category       String?
+  screenshotUrl  String?
+  currentVersion String?
+  isDriver       Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  updates        UpdateHistory[]
+}
+
+model UpdateHistory {
+  id              String   @id @default(uuid())
+  softwareId      String
+  software        Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  previousVersion String?
+  newVersion      String
+  status          String   @default("SUCCESS") // SUCCESS, FAILED
+  updatedAt       DateTime @default(now())
+}
+
+model SoftwareCustomization {
+  id             Int      @id @default(autoincrement())
+  wingetId       String   @unique
+  customName     String?
+  customDesc     String?  // HTML z edytora WYSIWYG
+  customIconUrl  String?
+  notes          String?
+  screenshotUrls String?  // JSON: string[] — ścieżki do plików w userData
+  rating         Int?
+  review         String?
+  tags           String?  // JSON: string[]
+  customCategory String?
+  updatedAt      DateTime @updatedAt
+}
+
+model AppSettings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model ResourceMetric {
+  id        String   @id @default(uuid())
+  cpuLoad   Float
+  ramUsage  Float
+  gpuLoad   Float?
+  timestamp DateTime @default(now())
+}
+
+model AppResourceMetric {
+  id        String   @id @default(uuid())
+  appName   String
+  cpuUsage  Float
+  ramUsage  Float    // Zużycie w % lub MB
+  timestamp DateTime @default(now())
+}

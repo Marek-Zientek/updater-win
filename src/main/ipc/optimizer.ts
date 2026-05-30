@@ -6,6 +6,84 @@ import * as path from 'path'
 
 const execAsync = promisify(exec)
 
+const domainsList = [
+  'vortex-win.data.microsoft.com',
+  'settings-win.data.microsoft.com',
+  'telemetry.microsoft.com',
+  'watson.telemetry.microsoft.com',
+  'diagnostics.support.microsoft.com',
+  'corp.sts.microsoft.com',
+  'statsfe1.ws.microsoft.com',
+  'statsfe2.ws.microsoft.com',
+  'feedback.windows.com',
+  'telemetry.urs.microsoft.com',
+  'events.gfe.nvidia.com',
+  'telemetry.nvidia.com',
+  'gfe.nvidia.com',
+  'adobeipm.adobe.com',
+  'cc-api-data.adobe.com'
+]
+
+async function isHostsTelemetryBlocked(): Promise<boolean> {
+  try {
+    const hostsPath = 'C:\\Windows\\System32\\drivers\\etc\\hosts'
+    if (!fs.existsSync(hostsPath)) return false
+    const content = await fs.promises.readFile(hostsPath, 'utf8')
+    return content.includes('vortex-win.data.microsoft.com')
+  } catch (err) {
+    return false
+  }
+}
+
+async function toggleHostsTelemetry(enabled: boolean): Promise<boolean> {
+  const domainsStr = domainsList.map(d => `'${d}'`).join(', ')
+  
+  let innerScript = ''
+  if (enabled) {
+    innerScript = `
+      $path = 'C:\\Windows\\System32\\drivers\\etc\\hosts'
+      $content = Get-Content -Path $path -ErrorAction SilentlyContinue
+      if ($content) {
+          $domains = @(${domainsStr})
+          $newContent = $content | Where-Object {
+              $line = $_
+              $match = $false
+              foreach ($d in $domains) {
+                  if ($line -like "*$d*") { $match = $true; break }
+              }
+              -not $match
+          }
+          $newContent | Set-Content -Path $path -Force
+      }
+    `
+  } else {
+    innerScript = `
+      $path = 'C:\\Windows\\System32\\drivers\\etc\\hosts'
+      $content = Get-Content -Path $path -ErrorAction SilentlyContinue
+      $domains = @(${domainsStr})
+      $newContent = @()
+      if ($content) {
+          $newContent = $content | Where-Object {
+              $line = $_
+              $match = $false
+              foreach ($d in $domains) {
+                  if ($line -like "*$d*") { $match = $true; break }
+              }
+              -not $match
+          }
+      }
+      $newContent | Set-Content -Path $path -Force
+      foreach ($d in $domains) {
+          Add-Content -Path $path -Value "127.0.0.1 $d" -Force
+      }
+    `
+  }
+
+  const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${innerScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+  await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+  return true
+}
+
 // Pomocnicze funkcje do obliczania i usuwania plików
 async function getDirectorySize(dirPath: string): Promise<number> {
   let totalSize = 0
@@ -284,7 +362,12 @@ export function setupOptimizerIPC(): void {
       const { stdout } = await execAsync(
         `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/\n/g, ' ')}"`
       )
-      return { success: true, data: JSON.parse(stdout.trim()) }
+      const data = JSON.parse(stdout.trim())
+      
+      const hostsBlocked = await isHostsTelemetryBlocked()
+      data.hostsTelemetry = !hostsBlocked
+
+      return { success: true, data }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -293,6 +376,10 @@ export function setupOptimizerIPC(): void {
   // 6. Przełączanie ustawień prywatności
   ipcMain.handle('toggle-privacy-setting', async (_, key: string, enabled: boolean) => {
     try {
+      if (key === 'hostsTelemetry') {
+        await toggleHostsTelemetry(enabled)
+        return { success: true, elevated: true }
+      }
       if (key === 'telemetry' || key === 'errorReporting') {
         const serviceName = key === 'telemetry' ? 'DiagTrack' : 'WerSvc'
         const startupType = enabled ? (key === 'telemetry' ? 'Automatic' : 'Manual') : 'Disabled'

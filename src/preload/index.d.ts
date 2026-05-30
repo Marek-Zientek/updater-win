@@ -68,6 +68,7 @@ export interface IHardwareAPI {
   launchDriverAssistant: (wingetId: string) => Promise<{ success: boolean; error?: string }>
   getRestorePoints: () => Promise<{ success: boolean; data: any[]; error?: string }>
   createRestorePoint: () => Promise<{ success: boolean; error?: string }>
+  restoreSystemPoint: () => Promise<{ success: boolean; error?: string }>
   exportBackup: () => Promise<{ success: boolean; canceled: boolean; error?: string }>
   importBackup: () => Promise<{ success: boolean; canceled: boolean; error?: string }>
   getBloatwareApps: () => Promise<{ success: boolean; data: any[]; error?: string }>

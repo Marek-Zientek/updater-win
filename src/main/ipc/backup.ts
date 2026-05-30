@@ -61,6 +61,25 @@ export function setupBackupIPC(): void {
     }
   })
 
+  // 2b. Uruchomienie systemowego kreatora przywracania (UAC)
+  ipcMain.handle('restore-system-point', async () => {
+    const psCommand = `
+      Start-Process rstrui.exe -ArgumentList '/restorewizard' -Verb RunAs
+    `
+    try {
+      await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/\n/g, ' ')}"`
+      )
+      return { success: true }
+    } catch (error: any) {
+      return {
+        success: false,
+        error:
+          'Nie udało się uruchomić przywracania systemu. Upewnij się, że zaakceptowałeś monit administratora (UAC) i narzędzie rstrui.exe jest dostępne w systemie.'
+      }
+    }
+  })
+
   // 3. Eksport konfiguracji aplikacji do pliku JSON
   ipcMain.handle('export-backup', async () => {
     try {

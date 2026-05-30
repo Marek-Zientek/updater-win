@@ -49,7 +49,8 @@ export function Optimizer() {
     telemetry: true,
     errorReporting: true,
     cortana: true,
-    ads: true
+    ads: true,
+    hostsTelemetry: true
   })
   const [loadingPrivacy, setLoadingPrivacy] = useState(false)
   const [togglingPrivacyKey, setTogglingPrivacyKey] = useState<string | null>(null)
@@ -508,6 +509,35 @@ export function Optimizer() {
                       checked={privacySettings.ads}
                       disabled={togglingPrivacyKey === 'ads'}
                       onChange={() => handleTogglePrivacy('ads', privacySettings.ads)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Hosts Telemetry */}
+              <div className="startup-card glass-panel flex items-center justify-between">
+                <div className="flex-1 min-w-0 pr-lg">
+                  <div className="flex items-center gap-md mb-xs">
+                    <h4 className="startup-name truncate">Blokada sieciowa telemetrii (Hosts file)</h4>
+                    <span className={`status-badge ${privacySettings.hostsTelemetry ? 'disabled' : 'active'}`}>
+                      {privacySettings.hostsTelemetry ? 'Aktywna (Brak optymalizacji)' : 'Zoptymalizowano (Wyłączona)'}
+                    </span>
+                  </div>
+                  <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%' }}>
+                    Blokuje domeny telemetryczne systemowe (Microsoft) oraz popularnych aplikacji (Nvidia, Adobe) na poziomie pliku hosts.
+                  </p>
+                </div>
+                <div className="flex items-center gap-md">
+                  <span className="text-xs text-muted font-bold" style={{ color: privacySettings.hostsTelemetry ? 'var(--color-error)' : '#34d399' }}>
+                    {privacySettings.hostsTelemetry ? 'Włączona' : 'Zablokowana'}
+                  </span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={privacySettings.hostsTelemetry}
+                      disabled={togglingPrivacyKey === 'hostsTelemetry'}
+                      onChange={() => handleTogglePrivacy('hostsTelemetry', privacySettings.hostsTelemetry)}
                     />
                     <span className="slider"></span>
                   </label>

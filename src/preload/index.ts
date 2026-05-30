@@ -53,6 +53,7 @@ const api = {
     ipcRenderer.invoke('launch-driver-assistant', wingetId),
   getRestorePoints: () => ipcRenderer.invoke('get-restore-points'),
   createRestorePoint: () => ipcRenderer.invoke('create-restore-point'),
+  restoreSystemPoint: () => ipcRenderer.invoke('restore-system-point'),
   exportBackup: () => ipcRenderer.invoke('export-backup'),
   importBackup: () => ipcRenderer.invoke('import-backup'),
   getBloatwareApps: () => ipcRenderer.invoke('get-bloatware-apps'),

@@ -33,6 +33,8 @@ export function Backup() {
     text: string
     type: 'success' | 'error'
   } | null>(null)
+  const [restoringPoint, setRestoringPoint] = useState(false)
+  const [confirmRestorePoint, setConfirmRestorePoint] = useState<RestorePoint | null>(null)
 
   // Ładowanie punktów przywracania
   const loadRestorePoints = async () => {
@@ -61,6 +63,23 @@ export function Backup() {
       showToast(res.error || 'Nie udało się utworzyć punktu przywracania.', 'error')
     }
     setCreatingPoint(false)
+  }
+
+  const handleConfirmRestore = (point: RestorePoint) => {
+    setConfirmRestorePoint(point)
+  }
+
+  const handleRestorePoint = async () => {
+    if (!confirmRestorePoint) return
+    setRestoringPoint(true)
+    const res = await window.api.restoreSystemPoint()
+    if (res.success) {
+      showToast('Kreator przywracania systemu Windows został pomyślnie uruchomiony.', 'success')
+      setConfirmRestorePoint(null)
+    } else {
+      showToast(res.error || 'Nie udało się uruchomić przywracania systemu.', 'error')
+    }
+    setRestoringPoint(false)
   }
 
   // Eksport profilu
@@ -129,6 +148,45 @@ export function Backup() {
 
   return (
     <div className="backup-container fade-in">
+      {confirmRestorePoint && (
+        <div className="restore-point-overlay">
+          <div className="restore-point-card glass-panel flex flex-col items-center justify-center text-center p-xl" style={{ padding: '32px' }}>
+            <AlertTriangle size={48} color="var(--color-warning)" className="mb-md" />
+            <h3 style={{ margin: '16px 0 8px 0', fontSize: '18px', color: '#fff', fontWeight: 700 }}>
+              Przywracanie systemu
+            </h3>
+            <p className="text-muted text-sm max-w-[360px]" style={{ margin: '0 0 20px 0', lineHeight: 1.5 }}>
+              Czy na pewno chcesz przywrócić stan systemu do punktu <strong>"{confirmRestorePoint.description}"</strong> z dnia {formatDate(confirmRestorePoint.creationTime)}?
+              <br /><br />
+              <strong style={{ color: 'var(--color-warning)' }}>Uwaga:</strong> Zapisz całą swoją pracę przed zatwierdzeniem. Komputer uruchomi systemowe narzędzie przywracania, co może wymagać ponownego uruchomienia komputera.
+            </p>
+            <div className="flex gap-sm justify-center">
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setConfirmRestorePoint(null)}
+                disabled={restoringPoint}
+              >
+                Anuluj
+              </button>
+              <button
+                className="btn btn-primary btn-sm flex items-center gap-xs"
+                onClick={handleRestorePoint}
+                disabled={restoringPoint}
+                style={{ background: 'var(--color-warning)', borderColor: 'var(--color-warning)', color: '#000', fontWeight: 'bold' }}
+              >
+                {restoringPoint ? (
+                  <>
+                    <div className="loader-btn-spin" style={{ borderTopColor: '#000' }}></div>
+                    <span>Uruchamianie...</span>
+                  </>
+                ) : (
+                  <span>Potwierdź i Uruchom</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="mb-lg">
         <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 800 }}>
@@ -247,6 +305,7 @@ export function Backup() {
                     <th>Nazwa / Opis</th>
                     <th>Data utworzenia</th>
                     <th>Typ</th>
+                    <th style={{ textAlign: 'right' }}>Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -257,6 +316,23 @@ export function Backup() {
                       <td className="text-muted text-xs">{formatDate(point.creationTime)}</td>
                       <td>
                         <span className="type-badge">{point.type || 'Modyfikacja'}</span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            borderRadius: '8px',
+                            borderColor: 'rgba(239, 68, 68, 0.3)',
+                            color: '#fca5a5',
+                            background: 'rgba(239, 68, 68, 0.05)'
+                          }}
+                          onClick={() => handleConfirmRestore(point)}
+                          disabled={restoringPoint || creatingPoint || loadingPoints}
+                        >
+                          Przywróć
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -334,6 +410,44 @@ export function Backup() {
       </div>
 
       <style>{`
+        .restore-point-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(10px);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .restore-point-card {
+          background: rgba(255, 255, 255, 0.03) !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          border-radius: 24px;
+          max-width: 420px;
+          width: 100%;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+          animation: scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes scaleUp {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+
+        .loader-btn-spin {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(255, 255, 255, 0.2);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
         .backup-container {
           display: flex;
           flex-direction: column;

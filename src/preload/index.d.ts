@@ -109,6 +109,7 @@ export interface IHardwareAPI {
   getMonitoredGames: () => Promise<{ success: boolean; data: any[]; error?: string }>
   addCustomGame: (game: { name: string; exe: string }) => Promise<{ success: boolean; error?: string }>
   deleteCustomGame: (exe: string) => Promise<{ success: boolean; error?: string }>
+  runHardwareBenchmark: () => Promise<{ success: boolean; data?: any; error?: string }>
   auth: IAuthAPI
 }
 

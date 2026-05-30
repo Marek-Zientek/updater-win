@@ -95,6 +95,7 @@ const api = {
   getMonitoredGames: () => ipcRenderer.invoke('get-monitored-games'),
   addCustomGame: (game: { name: string; exe: string }) => ipcRenderer.invoke('add-custom-game', game),
   deleteCustomGame: (exe: string) => ipcRenderer.invoke('delete-custom-game', exe),
+  runHardwareBenchmark: () => ipcRenderer.invoke('run-hardware-benchmark'),
   auth: {
     register: (data: any) => ipcRenderer.invoke('auth-register', data),
     login: (data: any) => ipcRenderer.invoke('auth-login', data),

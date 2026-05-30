@@ -1,6 +1,10 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import si from 'systeminformation'
 import { prisma } from '../db'
+import { Worker } from 'worker_threads'
+import * as os from 'os'
+import * as fs from 'fs'
+import * as path from 'path'
 
 // Cache dla danych statycznych, które się nie zmieniają
 let staticHardwareCache: any = null
@@ -336,6 +340,206 @@ export function setupHardwareIPC() {
       return { success: false, error: error.message }
     }
   })
+
+  // 6. Uruchamianie testów wydajnościowych (Benchmark)
+  ipcMain.handle('run-hardware-benchmark', async () => {
+    try {
+      console.log('[Benchmark] Starting CPU Single Thread test...')
+      const cpuSingle = runCpuSingleThreadBenchmark(2000)
+
+      console.log('[Benchmark] Starting CPU Multi Thread test...')
+      const cpuMulti = await runCpuMultiThreadBenchmark(2000)
+
+      console.log('[Benchmark] Starting RAM Bandwidth test...')
+      const ramSpeed = runRamBenchmark(1500)
+
+      console.log('[Benchmark] Starting Disk Read/Write test...')
+      const { writeSpeed, readSpeed } = await runDiskBenchmark()
+
+      const results = {
+        cpuSingle: cpuSingle * 2,
+        cpuMulti: cpuMulti * 2,
+        ramSpeed,
+        diskWrite: writeSpeed,
+        diskRead: readSpeed,
+        timestamp: new Date().toISOString()
+      }
+
+      console.log('[Benchmark] Benchmark completed successfully:', results)
+      return { success: true, data: results }
+    } catch (err: any) {
+      console.error('[Benchmark] Benchmark failed:', err)
+      return { success: false, error: err.message }
+    }
+  })
+}
+
+function isPrime(num: number): boolean {
+  if (num <= 1) return false
+  if (num <= 3) return true
+  if (num % 2 === 0 || num % 3 === 0) return false
+  for (let i = 5; i * i <= num; i += 6) {
+    if (num % i === 0 || num % (i + 2) === 0) return false
+  }
+  return true
+}
+
+function runCpuSingleThreadBenchmark(durationMs: number = 2000): number {
+  const start = Date.now()
+  let iterations = 0
+  let num = 2
+  while (Date.now() - start < durationMs) {
+    for (let k = 0; k < 1000; k++) {
+      isPrime(num)
+      num++
+    }
+    iterations++
+  }
+  return iterations
+}
+
+async function runCpuMultiThreadBenchmark(durationMs: number = 2000): Promise<number> {
+  const numWorkers = os.cpus().length || 1
+  const workers: Promise<number>[] = []
+
+  for (let i = 0; i < numWorkers; i++) {
+    workers.push(
+      new Promise((resolve) => {
+        const workerCode = `
+          const { parentPort } = require('worker_threads');
+          
+          function isPrime(num) {
+            if (num <= 1) return false;
+            if (num <= 3) return true;
+            if (num % 2 === 0 || num % 3 === 0) return false;
+            for (let i = 5; i * i <= num; i += 6) {
+              if (num % i === 0 || num % (i + 2) === 0) return false;
+            }
+            return true;
+          }
+
+          const start = Date.now();
+          let iterations = 0;
+          let num = 2;
+          while (Date.now() - start < ${durationMs}) {
+            for (let k = 0; k < 1000; k++) {
+              isPrime(num);
+              num++;
+            }
+            iterations++;
+          }
+          parentPort.postMessage(iterations);
+        `
+
+        const worker = new Worker(workerCode, { eval: true })
+        worker.on('message', (msg) => {
+          resolve(msg)
+          worker.terminate()
+        })
+        worker.on('error', () => {
+          resolve(0)
+        })
+      })
+    )
+  }
+
+  const results = await Promise.all(workers)
+  const totalIterations = results.reduce((sum, res) => sum + res, 0)
+  return totalIterations
+}
+
+function runRamBenchmark(durationMs: number = 1500): number {
+  const size = 1024 * 1024 // 8MB float array
+  const arr = new Float64Array(size)
+  const start = Date.now()
+  let operations = 0
+
+  while (Date.now() - start < durationMs) {
+    for (let i = 0; i < size; i++) {
+      arr[i] = i * 0.33
+    }
+    let sum = 0
+    for (let i = 0; i < size; i++) {
+      sum += arr[i]
+    }
+    operations += size * 2 * 8 // 2 * size * 8 bytes
+  }
+
+  const elapsedSeconds = (Date.now() - start) / 1000
+  const bytesPerSecond = operations / elapsedSeconds
+  const MBs = bytesPerSecond / (1024 * 1024)
+  return Math.round(MBs)
+}
+
+async function runDiskBenchmark(): Promise<{ writeSpeed: number; readSpeed: number }> {
+  const tempDir = app.getPath('temp')
+  const tempFilePath = path.join(tempDir, `updaterwin_disk_bench_\${Date.now()}.tmp`)
+
+  const fileSizeMB = 50
+  const chunkSizeBytes = 1024 * 1024
+  const buffer = Buffer.alloc(chunkSizeBytes, 'X')
+  const numChunks = fileSizeMB
+
+  // 1. Zapis
+  const writeStart = Date.now()
+  const writeStream = fs.createWriteStream(tempFilePath)
+
+  await new Promise<void>((resolve, reject) => {
+    let chunksWritten = 0
+
+    function writeNext() {
+      let canWrite = true
+      while (chunksWritten < numChunks && canWrite) {
+        canWrite = writeStream.write(buffer)
+        chunksWritten++
+      }
+      if (chunksWritten === numChunks) {
+        writeStream.end()
+      }
+    }
+
+    writeStream.on('drain', () => {
+      writeNext()
+    })
+
+    writeStream.on('finish', () => {
+      resolve()
+    })
+
+    writeStream.on('error', (err) => {
+      reject(err)
+    })
+
+    writeNext()
+  })
+
+  const writeDuration = (Date.now() - writeStart) / 1000
+  const writeSpeed = Math.round(fileSizeMB / (writeDuration || 0.001))
+
+  // 2. Odczyt
+  const readStart = Date.now()
+  const readStream = fs.createReadStream(tempFilePath)
+
+  await new Promise<void>((resolve, reject) => {
+    readStream.on('data', () => {})
+    readStream.on('end', () => {
+      resolve()
+    })
+    readStream.on('error', (err) => {
+      reject(err)
+    })
+  })
+
+  const readDuration = (Date.now() - readStart) / 1000
+  const readSpeed = Math.round(fileSizeMB / (readDuration || 0.001))
+
+  try {
+    await fs.promises.unlink(tempFilePath)
+  } catch (err) {
+    console.error('Failed to delete temp benchmark file:', err)
+  }
+
+  return { writeSpeed, readSpeed }
 }
 
 // Funkcja cyklicznego zapisu metryk wydajności do bazy danych

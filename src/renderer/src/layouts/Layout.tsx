@@ -157,6 +157,7 @@ export function Layout({ user, onLogout }: { user: any; onLogout: () => void }) 
                       <HardwareSubLink icon={<Zap size={14} />} label="Grafika" tab="gpu" />
                       <HardwareSubLink icon={<HardDrive size={14} />} label="Dyski" tab="disks" />
                       <HardwareSubLink icon={<Info size={14} />} label="System" tab="system" />
+                      <HardwareSubLink icon={<Gauge size={14} />} label="Benchmark" tab="benchmark" />
                     </div>
                   )}
                 </div>

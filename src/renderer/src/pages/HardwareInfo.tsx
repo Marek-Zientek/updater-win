@@ -10,9 +10,13 @@ import {
   Info,
   Wind,
   Fan,
-  Thermometer
+  Thermometer,
+  Play,
+  TrendingUp,
+  History,
+  Sparkles
 } from 'lucide-react'
-import { AreaChart, Area, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts'
 
 // Grafiki
 import cpuImg from '../assets/cpu_tech_render.png'
@@ -33,6 +37,110 @@ const HardwareInfo: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [tempHistory, setTempHistory] = useState<any[]>([])
   const [copied, setCopied] = useState(false)
+
+  // Benchmark States
+  const [benchHistory, setBenchHistory] = useState<any[]>([])
+  const [benchmarking, setBenchmarking] = useState(false)
+  const [currentStep, setCurrentStep] = useState<string>('')
+  const [benchProgress, setBenchProgress] = useState(0)
+  const [benchResult, setBenchResult] = useState<any>(null)
+
+  useEffect(() => {
+    const loadBenchmarkHistory = async () => {
+      const res = await window.api.getSetting('benchmark_results_history', '[]')
+      if (res.success && res.value) {
+        try {
+          const parsed = JSON.parse(res.value)
+          if (Array.isArray(parsed)) {
+            setBenchHistory(parsed)
+            if (parsed.length > 0) {
+              setBenchResult(parsed[parsed.length - 1])
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse benchmark history:', e)
+        }
+      }
+    }
+    loadBenchmarkHistory()
+  }, [])
+
+  const handleRunBenchmark = async () => {
+    if (benchmarking) return
+    setBenchmarking(true)
+    setBenchProgress(0)
+    setBenchResult(null)
+
+    const startTime = Date.now()
+    const expectedDuration = 7800 // ~7.8 seconds total
+
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      let pct = Math.min(95, Math.round((elapsed / expectedDuration) * 95))
+      setBenchProgress(pct)
+
+      if (elapsed < 500) {
+        setCurrentStep('Inicjalizacja środowiska testowego...')
+      } else if (elapsed < 2500) {
+        setCurrentStep('Test jednowątkowy procesora (CPU Single-Core)...')
+      } else if (elapsed < 4500) {
+        setCurrentStep('Test wielowątkowy procesora (CPU Multi-Core)...')
+      } else if (elapsed < 6000) {
+        setCurrentStep('Test przepustowości pamięci RAM...')
+      } else {
+        setCurrentStep('Test prędkości zapisu i odczytu dysku...')
+      }
+    }, 100)
+
+    try {
+      const res = await window.api.runHardwareBenchmark()
+      clearInterval(progressInterval)
+
+      if (res.success && res.data) {
+        setBenchProgress(100)
+        setCurrentStep('Test zakończony pomyślnie!')
+        
+        const cpuSingleScore = Math.round(res.data.cpuSingle / 4)
+        const cpuMultiScore = Math.round(res.data.cpuMulti / 4)
+        const ramScore = Math.round(res.data.ramSpeed / 8)
+        const diskReadScore = Math.round(res.data.diskRead / 2)
+        const diskWriteScore = Math.round(res.data.diskWrite / 2)
+
+        const overallIndex = Math.round(
+          (cpuSingleScore * 0.2) + 
+          (cpuMultiScore * 0.4) + 
+          (ramScore * 0.15) + 
+          (diskReadScore * 0.15) + 
+          (diskWriteScore * 0.1)
+        )
+
+        const finalResult = {
+          ...res.data,
+          scores: {
+            cpuSingle: cpuSingleScore,
+            cpuMulti: cpuMultiScore,
+            ram: ramScore,
+            diskRead: diskReadScore,
+            diskWrite: diskWriteScore,
+            overall: overallIndex
+          }
+        }
+
+        setBenchResult(finalResult)
+
+        const newHistory = [...benchHistory, finalResult].slice(-10)
+        setBenchHistory(newHistory)
+        await window.api.saveSetting('benchmark_results_history', JSON.stringify(newHistory))
+      } else {
+        setCurrentStep(`Błąd: ${res.error || 'Nieznany błąd'}`)
+      }
+    } catch (err: any) {
+      clearInterval(progressInterval)
+      setCurrentStep(`Wyjątek: ${err.message}`)
+    } finally {
+      setBenchmarking(false)
+    }
+  }
 
   useEffect(() => {
     const fetchStatic = async () => {
@@ -100,6 +208,8 @@ const HardwareInfo: React.FC = () => {
         return ssdImg
       case 'system':
         return moboImg
+      case 'benchmark':
+        return fanImg
       case 'summary':
         return cpuImg // Tło dla podsumowania
       default:
@@ -124,6 +234,284 @@ Kompilacja systemu operacyjnego: ${os.build}
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const renderBenchmark = () => {
+    // Rating mapping based on overall index
+    const getRating = (score: number) => {
+      if (score >= 12000) return { label: 'Ekstremalna wydajność (Extreme)', className: 'rating-extreme', glowColor: '#ec4899' }
+      if (score >= 8000) return { label: 'Wysoka wydajność (High-End)', className: 'rating-high', glowColor: 'var(--color-primary)' }
+      if (score >= 4000) return { label: 'Dobra wydajność (Mid-Range)', className: 'rating-mid', glowColor: '#22c55e' }
+      if (score >= 1500) return { label: 'Biurowy / Standardowy', className: 'rating-standard', glowColor: '#eab308' }
+      return { label: 'Wymaga modernizacji (Low-End)', className: 'rating-low', glowColor: '#ef4444' }
+    }
+
+    const rating = benchResult ? getRating(benchResult.scores.overall) : null
+
+    // Chart data formatting
+    const chartData = benchHistory.map((run, idx) => ({
+      name: `Test ${idx + 1}`,
+      'Wynik Ogólny': run.scores.overall,
+      'CPU Multi': run.scores.cpuMulti,
+      'CPU Single': run.scores.cpuSingle,
+      date: new Date(run.timestamp).toLocaleDateString()
+    }))
+
+    // Get recommendations
+    const getRecommendation = (res: any) => {
+      if (!res) return 'Uruchom pełny test wydajności, aby otrzymać zaawansowane rekomendacje optymalizacyjne.'
+      
+      const { scores } = res
+      let advice = ''
+      
+      if (scores.cpuSingle > 3000 && scores.cpuMulti > 15000) {
+        advice += 'Twój procesor to prawdziwy potwór wydajnościowy. Doskonale radzi sobie z zaawansowanym renderowaniem i wielowątkową pracą. '
+      } else if (scores.cpuMulti < 5000) {
+        advice += 'Wydajność wielowątkowa Twojego procesora jest dość niska. Może to spowalniać pracę podczas uruchamiania wielu aplikacji jednocześnie lub edycji wideo. '
+      }
+
+      if (scores.ram > 6000) {
+        advice += 'Szybkość pamięci RAM jest znakomita, co pozwala na pełne wykorzystanie przepustowości procesora. '
+      } else if (scores.ram < 3000) {
+        advice += 'Zalecamy sprawdzenie, czy w BIOS/UEFI włączony jest profil XMP/EXPO dla pamięci RAM – niska przepustowość pamięci może być wąskim gardłem. '
+      }
+
+      if (scores.diskRead > 3000) {
+        advice += 'Dysk SSD NVMe pracuje z pełną wydajnością sekwencyjną, gwarantując błyskawiczny start systemu i gier. '
+      } else if (scores.diskRead < 1000) {
+        advice += 'Prędkość odczytu dysku sugeruje, że korzystasz ze starszego dysku SSD SATA lub tradycyjnego dysku HDD. Wymiana na dysk SSD NVMe PCIe dałaby ogromny odczuwalny skok szybkości działania systemu.'
+      }
+
+      return advice || 'Konfiguracja Twojego komputera jest dobrze zbalansowana. Brak widocznych wąskich gardeł sprzętowych.'
+    }
+
+    return (
+      <div className="fade-in benchmark-container text-white">
+        {/* Top Control Panel */}
+        <div className="benchmark-action-panel">
+          <div className="flex flex-col gap-sm">
+            <h3 className="m-0 font-black text-xl font-outfit uppercase tracking-wider">
+              Narzędzie Benchmark
+            </h3>
+            <span className="text-[9px] text-muted font-black tracking-widest uppercase">
+              Uruchom pełną diagnostykę wydajnościową procesora, pamięci i dysków
+            </span>
+          </div>
+
+          <button
+            className="benchmark-btn"
+            onClick={handleRunBenchmark}
+            disabled={benchmarking}
+          >
+            {benchmarking ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                <span>Testowanie... {benchProgress}%</span>
+              </>
+            ) : (
+              <>
+                <Play size={16} fill="white" className="mr-2" />
+                <span>Uruchom pełny test</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Progress Tracker (when benchmarking) */}
+        {benchmarking && (
+          <div className="benchmark-progress-container fade-in">
+            <div className="flex justify-between items-center text-xs font-black uppercase tracking-wider font-outfit">
+              <span className="text-primary animate-pulse">{currentStep}</span>
+              <span className="text-white">{benchProgress}%</span>
+            </div>
+            <div className="benchmark-progress-bar-bg mt-2">
+              <div
+                className="benchmark-progress-bar-fill"
+                style={{ width: `${benchProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Main View Grid */}
+        {benchResult ? (
+          <div className="benchmark-results-grid fade-in">
+            {/* Left Column: Overall Index Circular Gauge */}
+            <div className="benchmark-index-card">
+              <div className="flex items-center gap-2 mb-6">
+                <Sparkles size={18} className="text-primary animate-pulse" />
+                <h4 className="m-0 text-white font-black text-xs font-outfit uppercase tracking-wider">
+                  Wskaźnik Wydajności
+                </h4>
+              </div>
+
+              <div className="benchmark-index-circle">
+                <div className="benchmark-index-circle-bg" />
+                <div
+                  className="benchmark-index-circle-glow"
+                  style={{
+                    backgroundColor: rating?.glowColor,
+                    boxShadow: `0 0 40px 10px ${rating?.glowColor}`
+                  }}
+                />
+                <div className="benchmark-index-content">
+                  <span className="benchmark-index-score">{benchResult.scores.overall.toLocaleString()}</span>
+                  <span className="benchmark-index-label">PUNKTY INDEX</span>
+                </div>
+              </div>
+
+              <span className={`benchmark-rating-badge ${rating?.className}`}>
+                {rating?.label}
+              </span>
+
+              <div className="text-[10px] text-muted font-bold uppercase tracking-wider mt-6 pt-6 border-t border-white/5 w-full">
+                Test ukończono: {new Date(benchResult.timestamp).toLocaleString()}
+              </div>
+            </div>
+
+            {/* Right Column: Details Breakdowns */}
+            <div className="benchmark-details-panel">
+              {/* Advice Box */}
+              <div className="benchmark-advice-box">
+                <Info size={20} className="benchmark-advice-icon" />
+                <div className="benchmark-advice-text">
+                  <strong>Analiza Antigravity:</strong> {getRecommendation(benchResult)}
+                </div>
+              </div>
+
+              {/* Cards Grid */}
+              <div className="benchmark-score-cards-grid">
+                {/* CPU Single */}
+                <div className="benchmark-detail-card">
+                  <div className="benchmark-card-header">
+                    <span className="benchmark-card-title">
+                      <Cpu size={14} className="text-warning mr-2" />
+                      CPU Single-Core
+                    </span>
+                    <span className="benchmark-card-score">{benchResult.scores.cpuSingle.toLocaleString()}</span>
+                  </div>
+                  <div className="benchmark-card-raw">
+                    Prędkość obliczeniowa na pojedynczym wątku
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-warning rounded-full" style={{ width: `${Math.min(100, (benchResult.scores.cpuSingle / 4000) * 100)}%` }} />
+                  </div>
+                </div>
+
+                {/* CPU Multi */}
+                <div className="benchmark-detail-card">
+                  <div className="benchmark-card-header">
+                    <span className="benchmark-card-title">
+                      <Cpu size={14} className="text-primary mr-2" />
+                      CPU Multi-Core
+                    </span>
+                    <span className="benchmark-card-score">{benchResult.scores.cpuMulti.toLocaleString()}</span>
+                  </div>
+                  <div className="benchmark-card-raw">
+                    Wydajność wielowątkowa procesora (pełna moc)
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (benchResult.scores.cpuMulti / 30000) * 100)}%` }} />
+                  </div>
+                </div>
+
+                {/* RAM Card */}
+                <div className="benchmark-detail-card">
+                  <div className="benchmark-card-header">
+                    <span className="benchmark-card-title">
+                      <Database size={14} className="text-success mr-2" />
+                      Przepustowość RAM
+                    </span>
+                    <span className="benchmark-card-score">{benchResult.scores.ram.toLocaleString()}</span>
+                  </div>
+                  <div className="benchmark-card-raw">
+                    Transfer pamięci: {benchResult.ramSpeed.toLocaleString()} MB/s
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-success rounded-full" style={{ width: `${Math.min(100, (benchResult.ramSpeed / 75000) * 100)}%` }} />
+                  </div>
+                </div>
+
+                {/* Storage Card */}
+                <div className="benchmark-detail-card">
+                  <div className="benchmark-card-header">
+                    <span className="benchmark-card-title">
+                      <HardDrive size={14} style={{ color: '#a855f7' }} className="mr-2" />
+                      Dysk Systemowy
+                    </span>
+                    <span className="benchmark-card-score">
+                      {Math.round((benchResult.scores.diskRead + benchResult.scores.diskWrite) / 2).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="benchmark-card-raw text-[11px]">
+                    Odczyt: {benchResult.diskRead.toLocaleString()} MB/s | Zapis: {benchResult.diskWrite.toLocaleString()} MB/s
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ backgroundColor: '#a855f7', width: `${Math.min(100, (benchResult.diskRead / 8000) * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* History chart */}
+              {benchHistory.length > 1 && (
+                <div className="benchmark-history-panel">
+                  <div className="flex items-center gap-2 mb-6">
+                    <History size={16} className="text-muted mr-2" />
+                    <h4 className="m-0 text-white font-black text-xs font-outfit uppercase tracking-wider">
+                      Historia Wykonań
+                    </h4>
+                  </div>
+                  <div className="h-[200px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorOverall" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <Area
+                          type="monotone"
+                          dataKey="Wynik Ogólny"
+                          stroke="var(--color-primary)"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorOverall)"
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(4, 5, 7, 0.9)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '12px',
+                            color: 'white'
+                          }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          !benchmarking && (
+            <div className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-4 fade-in" style={{ background: 'rgba(255, 255, 255, 0.01)', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.03)' }}>
+              <TrendingUp size={48} className="text-muted opacity-40 animate-pulse" />
+              <h3 className="m-0 text-white font-black text-lg font-outfit uppercase tracking-wider">
+                Brak wyników testu
+              </h3>
+              <p className="text-muted text-sm max-w-[400px] m-0">
+                Uruchom test wydajności, aby zmierzyć szybkość procesora, pamięci RAM oraz dysku twardego. Wyniki zostaną zapisane w historii urządzenia.
+              </p>
+              <button className="benchmark-btn mt-2" onClick={handleRunBenchmark}>
+                <Play size={14} fill="white" className="mr-2" />
+                <span>Uruchom pierwszy test</span>
+              </button>
+            </div>
+          )
+        )}
+      </div>
+    )
   }
 
   const renderSummary = () => {
@@ -1960,7 +2348,9 @@ Kompilacja systemu operacyjnego: ${os.build}
                         ? 'Karta Graficzna'
                         : activeTab === 'system'
                           ? 'System'
-                          : 'Dyski'}
+                          : activeTab === 'benchmark'
+                            ? 'Testy Wydajnościowe (Benchmark)'
+                            : 'Dyski'}
           </h1>
           <div className="sync-badge">Deep Diagnostics v4.5</div>
         </header>
@@ -1973,6 +2363,7 @@ Kompilacja systemu operacyjnego: ${os.build}
           {activeTab === 'gpu' && renderGPU()}
           {activeTab === 'disks' && renderDisks()}
           {activeTab === 'system' && renderSystem()}
+          {activeTab === 'benchmark' && renderBenchmark()}
         </div>
       </div>
 
@@ -3077,6 +3468,260 @@ Kompilacja systemu operacyjnego: ${os.build}
         @media (max-width: 1000px) {
           .crystal-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 20px; }
           .crystal-stat-mini { align-items: flex-start; }
+        }
+
+        /* Benchmark Styles */
+        .benchmark-container {
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
+          padding: 32px;
+          position: relative;
+          z-index: 10;
+          width: 100%;
+        }
+        .benchmark-action-panel {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 20px;
+          padding: 24px;
+          backdrop-filter: blur(20px);
+        }
+        .benchmark-btn {
+          display: flex;
+          align-items: center;
+          background: linear-gradient(135deg, var(--color-primary), #0072ff);
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          font-weight: 800;
+          font-family: 'Outfit', sans-serif;
+          font-size: 14px;
+          text-transform: uppercase;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 0 15px rgba(69, 243, 255, 0.2);
+        }
+        .benchmark-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 0 25px rgba(69, 243, 255, 0.4);
+        }
+        .benchmark-btn:disabled {
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.3);
+          cursor: not-allowed;
+          box-shadow: none;
+        }
+        .benchmark-progress-container {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          width: 100%;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 16px;
+          padding: 20px;
+        }
+        .benchmark-progress-bar-bg {
+          width: 100%;
+          height: 10px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 5px;
+          overflow: hidden;
+          position: relative;
+        }
+        .benchmark-progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--color-primary), #0072ff, #a855f7);
+          transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 5px;
+          box-shadow: 0 0 10px rgba(69, 243, 255, 0.5);
+        }
+        .benchmark-results-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        @media (min-width: 1024px) {
+          .benchmark-results-grid {
+            grid-template-columns: 350px 1fr;
+          }
+        }
+        .benchmark-index-card {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 28px;
+          padding: 32px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          backdrop-filter: blur(20px);
+        }
+        .benchmark-index-circle {
+          position: relative;
+          width: 200px;
+          height: 200px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 24px;
+        }
+        .benchmark-index-circle-bg {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          border: 6px solid rgba(255, 255, 255, 0.03);
+        }
+        .benchmark-index-circle-glow {
+          position: absolute;
+          width: 90%;
+          height: 90%;
+          border-radius: 50%;
+          filter: blur(20px);
+          opacity: 0.15;
+          z-index: 1;
+        }
+        .benchmark-index-content {
+          z-index: 2;
+          display: flex;
+          flex-direction: column;
+        }
+        .benchmark-index-score {
+          font-size: 36px;
+          font-weight: 900;
+          color: white;
+          font-family: 'Outfit', sans-serif;
+          line-height: 1;
+        }
+        .benchmark-index-label {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          color: var(--color-text-muted);
+          font-weight: 800;
+          margin-top: 4px;
+        }
+        .benchmark-rating-badge {
+          padding: 8px 16px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          font-family: 'Outfit', sans-serif;
+          margin-top: 16px;
+        }
+        .rating-extreme {
+          background: rgba(236, 72, 153, 0.15);
+          color: #ec4899;
+          border: 1px solid rgba(236, 72, 153, 0.25);
+          box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
+        }
+        .rating-high {
+          background: rgba(69, 243, 255, 0.1);
+          color: var(--color-primary);
+          border: 1px solid rgba(69, 243, 255, 0.2);
+          box-shadow: 0 0 15px rgba(69, 243, 255, 0.15);
+        }
+        .rating-mid {
+          background: rgba(34, 197, 94, 0.1);
+          color: #22c55e;
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          box-shadow: 0 0 15px rgba(34, 197, 94, 0.15);
+        }
+        .rating-standard {
+          background: rgba(234, 179, 8, 0.1);
+          color: #eab308;
+          border: 1px solid rgba(234, 179, 8, 0.2);
+          box-shadow: 0 0 15px rgba(234, 179, 8, 0.15);
+        }
+        .rating-low {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+        }
+        .benchmark-details-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        .benchmark-score-cards-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+        @media (min-width: 640px) {
+          .benchmark-score-cards-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        .benchmark-detail-card {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 20px;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          backdrop-filter: blur(20px);
+        }
+        .benchmark-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .benchmark-card-title {
+          font-size: 11px;
+          font-weight: 800;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+          display: flex;
+          align-items: center;
+        }
+        .benchmark-card-score {
+          font-size: 24px;
+          font-weight: 900;
+          color: white;
+          font-family: 'Outfit', sans-serif;
+        }
+        .benchmark-card-raw {
+          font-size: 13px;
+          color: var(--color-text-secondary);
+          margin-top: -4px;
+        }
+        .benchmark-history-panel {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 24px;
+          padding: 24px;
+          backdrop-filter: blur(20px);
+        }
+        .benchmark-advice-box {
+          background: rgba(69, 243, 255, 0.03);
+          border: 1px solid rgba(69, 243, 255, 0.08);
+          border-radius: 20px;
+          padding: 20px;
+          display: flex;
+          gap: 16px;
+          align-items: flex-start;
+        }
+        .benchmark-advice-icon {
+          color: var(--color-primary);
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        .benchmark-advice-text {
+          font-size: 13px;
+          line-height: 1.6;
+          color: var(--color-text-secondary);
         }
 
         .loader { width: 60px; height: 60px; border: 5px solid rgba(255,255,255,0.05); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s infinite linear; }

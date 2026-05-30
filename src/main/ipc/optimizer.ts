@@ -4,6 +4,19 @@ import { promisify } from 'util'
 import * as fs from 'fs'
 import * as path from 'path'
 import { getSettingInternal, saveSettingInternal } from './settings'
+import si from 'systeminformation'
+
+const DEFAULT_GAMES = [
+  { name: 'Cyberpunk 2077', exe: 'Cyberpunk2077.exe' },
+  { name: 'Counter-Strike 2', exe: 'cs2.exe' },
+  { name: 'Wiedźmin 3: Dziki Gon', exe: 'witcher3.exe' },
+  { name: 'League of Legends', exe: 'League of Legends.exe' },
+  { name: 'Valorant', exe: 'VALORANT-Win64-Shipping.exe' },
+  { name: 'Fortnite', exe: 'FortniteClient-Win64-Shipping.exe' },
+  { name: 'Apex Legends', exe: 'r5apex.exe' },
+  { name: 'Grand Theft Auto V', exe: 'GTA5.exe' },
+  { name: 'Minecraft', exe: 'javaw.exe' }
+]
 
 const execAsync = promisify(exec)
 
@@ -176,6 +189,298 @@ async function isGameBoosterActive(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+// Wyszukiwanie zainstalowanych gier Steam
+async function getSteamGames(): Promise<{ name: string; exe: string }[]> {
+  const games: { name: string; exe: string }[] = []
+  if (process.platform !== 'win32') return games
+
+  try {
+    let steamPath = 'C:\\Program Files (x86)\\Steam'
+    try {
+      const { stdout } = await execAsync(
+        `powershell -NoProfile -NonInteractive -Command "(Get-ItemProperty -Path 'HKCU:\\Software\\Valve\\Steam').SteamPath"`
+      )
+      const p = stdout.trim()
+      if (p && fs.existsSync(p)) {
+        steamPath = p
+      }
+    } catch (e) {
+      // Ignoruj, użyjemy domyślnej ścieżki
+    }
+
+    const libraryFoldersPath = path.join(steamPath, 'steamapps', 'libraryfolders.vdf')
+    if (!fs.existsSync(libraryFoldersPath)) {
+      return games
+    }
+
+    const content = await fs.promises.readFile(libraryFoldersPath, 'utf8')
+    const matches = content.match(/"path"\s+"([^"]+)"/g)
+    const libraryPaths: string[] = [steamPath]
+    if (matches) {
+      for (const m of matches) {
+        const cleanPath = m
+          .replace(/"path"\s+"/, '')
+          .replace(/"/, '')
+          .replace(/\\\\/g, '\\')
+        if (fs.existsSync(cleanPath)) {
+          libraryPaths.push(cleanPath)
+        }
+      }
+    }
+
+    for (const libPath of libraryPaths) {
+      const appsPath = path.join(libPath, 'steamapps')
+      if (!fs.existsSync(appsPath)) continue
+
+      const files = await fs.promises.readdir(appsPath)
+      const manifests = files.filter((f) => f.startsWith('appmanifest_') && f.endsWith('.acf'))
+
+      for (const manifest of manifests) {
+        try {
+          const manifestContent = await fs.promises.readFile(path.join(appsPath, manifest), 'utf8')
+          const nameMatch = manifestContent.match(/"name"\s+"([^"]+)"/)
+          const dirMatch = manifestContent.match(/"installdir"\s+"([^"]+)"/)
+
+          if (nameMatch && dirMatch) {
+            const name = nameMatch[1]
+            const dirName = dirMatch[1]
+            const gameDir = path.join(appsPath, 'common', dirName)
+
+            if (fs.existsSync(gameDir)) {
+              const gameFiles = await fs.promises.readdir(gameDir, { withFileTypes: true })
+              const exes = gameFiles.filter(
+                (f) => f.isFile() && f.name.toLowerCase().endsWith('.exe')
+              )
+
+              if (exes.length > 0) {
+                const mainExes = exes.filter((f) => {
+                  const n = f.name.toLowerCase()
+                  return (
+                    !n.includes('crash') &&
+                    !n.includes('reporter') &&
+                    !n.includes('setup') &&
+                    !n.includes('install') &&
+                    !n.includes('unity') &&
+                    !n.includes('unins') &&
+                    !n.includes('config')
+                  )
+                })
+
+                const targetExe = mainExes.length > 0 ? mainExes[0].name : exes[0].name
+                games.push({ name, exe: targetExe })
+              }
+            }
+          }
+        } catch (e) {
+          // Ignoruj uszkodzone pliki manifestu
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Steam Games Scanner] Error scanning:', err)
+  }
+
+  const uniqueGames = new Map<string, { name: string; exe: string }>()
+  for (const g of games) {
+    uniqueGames.set(g.exe.toLowerCase(), g)
+  }
+  return Array.from(uniqueGames.values())
+}
+
+// Logika włączania/wyłączania Trybu Gry
+export async function toggleGameBoosterInternal(enable: boolean): Promise<{ success: boolean; active: boolean; error?: string }> {
+  if (process.platform !== 'win32') {
+    return { success: false, active: false, error: 'Ta funkcja jest dostępna tylko w systemie Windows.' }
+  }
+
+  try {
+    if (enable) {
+      const psGetPlan = `
+        (Get-CimInstance -Namespace root\\cimv2\\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive }).ElementID
+      `
+      const { stdout } = await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psGetPlan.trim()}"`
+      )
+      const currentPlan = stdout.trim()
+      if (currentPlan && currentPlan !== 'e9a22b07-e21a-477b-8a17-8e654d93c6b2') {
+        await saveSettingInternal('original_power_plan_guid', currentPlan)
+      }
+
+      const enableScript = `
+        $ultimateGuid = 'e9a22b07-e21a-477b-8a17-8e654d93c6b2'
+        $plan = Get-CimInstance -Namespace root\\cimv2\\power -ClassName Win32_PowerPlan | Where-Object { $_.ElementID -eq $ultimateGuid }
+        if (-not $plan) {
+            powercfg /duplicate-scheme $ultimateGuid | Out-Null
+        }
+        powercfg /setactive $ultimateGuid | Out-Null
+
+        $interfaces = Get-ChildItem -Path "HKLM:\\System\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces" -ErrorAction SilentlyContinue
+        if ($interfaces) {
+            foreach ($i in $interfaces) {
+                Set-ItemProperty -Path $i.PSPath -Name "TcpAckFrequency" -Value 1 -Type DWord -ErrorAction SilentlyContinue | Out-Null
+                Set-ItemProperty -Path $i.PSPath -Name "TCPNoDelay" -Value 1 -Type DWord -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+
+        Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue | Out-Null
+        Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue | Out-Null
+      `
+
+      const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${enableScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+      await saveSettingInternal('game_booster_active', 'true')
+      return { success: true, active: true }
+    } else {
+      const originalPlan = await getSettingInternal('original_power_plan_guid', '381b4222-f694-41f0-9685-ff5bb260df2e')
+
+      const disableScript = `
+        powercfg /setactive ${originalPlan} | Out-Null
+
+        $interfaces = Get-ChildItem -Path "HKLM:\\System\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces" -ErrorAction SilentlyContinue
+        if ($interfaces) {
+            foreach ($i in $interfaces) {
+                Remove-ItemProperty -Path $i.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue | Out-Null
+                Remove-ItemProperty -Path $i.PSPath -Name "TCPNoDelay" -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+
+        Start-Service -Name SysMain -ErrorAction SilentlyContinue | Out-Null
+        Start-Service -Name Spooler -ErrorAction SilentlyContinue | Out-Null
+      `
+
+      const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${disableScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+      await saveSettingInternal('game_booster_active', 'false')
+      return { success: true, active: false }
+    }
+  } catch (error: any) {
+    return { success: false, active: !enable, error: error.message }
+  }
+}
+
+// Aplikowanie optymalizacji na procesie gry
+async function applyProcessOptimizations(exe: string): Promise<void> {
+  try {
+    const processName = exe.endsWith('.exe') ? exe.slice(0, -4) : exe
+
+    // 1. Priorytetyzacja CPU (High Priority)
+    const highPriorityEnabled = await getSettingInternal('game_booster_high_priority', 'false')
+    if (highPriorityEnabled === 'true') {
+      console.log(`[Game Booster Optimizer] Setting priority of ${processName} to High...`)
+      const psPriority = `Get-Process -Name "${processName}" -ErrorAction SilentlyContinue | ForEach-Object { $_.PriorityClass = 'High' }`
+      await execAsync(`powershell -NoProfile -NonInteractive -Command "${psPriority}"`)
+    }
+
+    // 2. Koligacja rdzeni CPU (P-Cores only)
+    const optimizeCoresEnabled = await getSettingInternal('game_booster_optimize_cores', 'false')
+    if (optimizeCoresEnabled === 'true') {
+      const siCpu = await si.cpu()
+      const logical = siCpu.processors || 1
+      const physical = siCpu.physicalCores || 1
+
+      // Wyliczanie rdzeni P dla procesorów hybrydowych Intel
+      const pCoresCount = logical - physical
+
+      if (pCoresCount > 0 && logical > physical) {
+        const pCoreThreads = 2 * pCoresCount
+        let affinityMask = 0
+        for (let i = 0; i < pCoreThreads; i++) {
+          affinityMask += Math.pow(2, i)
+        }
+
+        console.log(`[Game Booster Optimizer] CPU Hybrid detected: ${pCoresCount} P-Cores (${pCoreThreads} threads). Setting affinity mask of ${processName} to ${affinityMask}...`)
+        const psAffinity = `Get-Process -Name "${processName}" -ErrorAction SilentlyContinue | ForEach-Object { $_.ProcessorAffinity = ${affinityMask} }`
+        await execAsync(`powershell -NoProfile -NonInteractive -Command "${psAffinity}"`)
+      }
+    }
+  } catch (err) {
+    console.error(`[Game Booster Optimizer] Failed to apply process optimizations:`, err)
+  }
+}
+
+let scannerInterval: NodeJS.Timeout | null = null
+let isGameCurrentlyRunning = false
+let activeRunningGameExe = ''
+
+export function startGameScanner(): void {
+  if (scannerInterval) return
+
+  scannerInterval = setInterval(async () => {
+    try {
+      const autoActivate = await getSettingInternal('game_booster_auto_activate', 'false')
+      if (autoActivate !== 'true') {
+        if (isGameCurrentlyRunning) {
+          isGameCurrentlyRunning = false
+          activeRunningGameExe = ''
+        }
+        return
+      }
+
+      const customGamesStr = await getSettingInternal('game_booster_custom_games', '[]')
+      const customGames: { name: string; exe: string }[] = JSON.parse(customGamesStr)
+      const steamGames = await getSteamGames()
+
+      const allMonitoredExes = new Set<string>()
+      DEFAULT_GAMES.forEach((g) => allMonitoredExes.add(g.exe.toLowerCase()))
+      customGames.forEach((g) => allMonitoredExes.add(g.exe.toLowerCase()))
+      steamGames.forEach((g) => allMonitoredExes.add(g.exe.toLowerCase()))
+
+      if (allMonitoredExes.size === 0) return
+
+      const psCommand = `Get-Process | Select-Object -ExpandProperty ProcessName`
+      const { stdout } = await execAsync(
+        `powershell -NoProfile -NonInteractive -Command "${psCommand}"`
+      )
+
+      const runningProcesses = new Set(
+        stdout
+          .split('\n')
+          .map((p) => p.trim().toLowerCase())
+          .filter(Boolean)
+      )
+
+      let foundRunningGameExe = ''
+      for (const exe of allMonitoredExes) {
+        const nameWithoutExe = exe.endsWith('.exe') ? exe.slice(0, -4) : exe
+        if (runningProcesses.has(nameWithoutExe.toLowerCase())) {
+          foundRunningGameExe = exe
+          break
+        }
+      }
+
+      if (foundRunningGameExe) {
+        if (!isGameCurrentlyRunning) {
+          console.log(`[Game Booster Scanner] Detected running game: ${foundRunningGameExe}`)
+          isGameCurrentlyRunning = true
+          activeRunningGameExe = foundRunningGameExe
+
+          const activeStatus = await isGameBoosterActive()
+          if (!activeStatus) {
+            console.log(`[Game Booster Scanner] Automatically activating Game Booster...`)
+            await toggleGameBoosterInternal(true)
+          }
+
+          await applyProcessOptimizations(foundRunningGameExe)
+        }
+      } else {
+        if (isGameCurrentlyRunning) {
+          console.log(`[Game Booster Scanner] Game stopped running: ${activeRunningGameExe}`)
+          isGameCurrentlyRunning = false
+          activeRunningGameExe = ''
+
+          const activeStatus = await isGameBoosterActive()
+          if (activeStatus) {
+            console.log(`[Game Booster Scanner] Automatically deactivating Game Booster...`)
+            await toggleGameBoosterInternal(false)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Game Booster Scanner] Error in scan cycle:', err)
+    }
+  }, 5000)
 }
 
 export function setupOptimizerIPC(): void {
@@ -461,76 +766,114 @@ export function setupOptimizerIPC(): void {
 
   // 8. Przełączanie trybu gry (Game Booster)
   ipcMain.handle('toggle-game-booster', async (_, enable: boolean) => {
-    if (process.platform !== 'win32') {
-      return { success: false, error: 'Ta funkcja jest dostępna tylko w systemie Windows.' }
-    }
+    return await toggleGameBoosterInternal(enable)
+  })
 
+  // 9. Pobieranie listy gier i ich statusu uruchomienia
+  ipcMain.handle('get-monitored-games', async () => {
     try {
-      if (enable) {
-        // POBIERZ AKTUALNY PLAN ZASILANIA
-        const psGetPlan = `
-          (Get-CimInstance -Namespace root\\cimv2\\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive }).ElementID
-        `
+      const customGamesStr = await getSettingInternal('game_booster_custom_games', '[]')
+      const customGames: { name: string; exe: string }[] = JSON.parse(customGamesStr)
+      const steamGames = await getSteamGames()
+
+      const gamesMap = new Map<
+        string,
+        { id: string; name: string; exe: string; source: string; running: boolean }
+      >()
+
+      DEFAULT_GAMES.forEach((g) => {
+        gamesMap.set(g.exe.toLowerCase(), {
+          id: 'default_' + g.exe,
+          name: g.name,
+          exe: g.exe,
+          source: 'default',
+          running: false
+        })
+      })
+
+      steamGames.forEach((g) => {
+        gamesMap.set(g.exe.toLowerCase(), {
+          id: 'steam_' + g.exe,
+          name: g.name,
+          exe: g.exe,
+          source: 'steam',
+          running: false
+        })
+      })
+
+      customGames.forEach((g) => {
+        gamesMap.set(g.exe.toLowerCase(), {
+          id: 'custom_' + g.exe,
+          name: g.name,
+          exe: g.exe,
+          source: 'custom',
+          running: false
+        })
+      })
+
+      try {
+        const psCommand = `Get-Process | Select-Object -ExpandProperty ProcessName`
         const { stdout } = await execAsync(
-          `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psGetPlan.trim()}"`
+          `powershell -NoProfile -NonInteractive -Command "${psCommand}"`
         )
-        const currentPlan = stdout.trim()
-        if (currentPlan && currentPlan !== 'e9a22b07-e21a-477b-8a17-8e654d93c6b2') {
-          await saveSettingInternal('original_power_plan_guid', currentPlan)
+        const runningProcesses = new Set(
+          stdout
+            .split('\n')
+            .map((p) => p.trim().toLowerCase())
+            .filter(Boolean)
+        )
+
+        for (const game of gamesMap.values()) {
+          const nameWithoutExe = game.exe.endsWith('.exe') ? game.exe.slice(0, -4) : game.exe
+          if (runningProcesses.has(nameWithoutExe.toLowerCase())) {
+            game.running = true
+          }
         }
-
-        // SKRYPT WŁĄCZAJĄCY TRYB GRY
-        const enableScript = `
-          $ultimateGuid = 'e9a22b07-e21a-477b-8a17-8e654d93c6b2'
-          $plan = Get-CimInstance -Namespace root\\cimv2\\power -ClassName Win32_PowerPlan | Where-Object { $_.ElementID -eq $ultimateGuid }
-          if (-not $plan) {
-              powercfg /duplicate-scheme $ultimateGuid | Out-Null
-          }
-          powercfg /setactive $ultimateGuid | Out-Null
-
-          $interfaces = Get-ChildItem -Path "HKLM:\\System\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces" -ErrorAction SilentlyContinue
-          if ($interfaces) {
-              foreach ($i in $interfaces) {
-                  Set-ItemProperty -Path $i.PSPath -Name "TcpAckFrequency" -Value 1 -Type DWord -ErrorAction SilentlyContinue | Out-Null
-                  Set-ItemProperty -Path $i.PSPath -Name "TCPNoDelay" -Value 1 -Type DWord -ErrorAction SilentlyContinue | Out-Null
-              }
-          }
-
-          Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue | Out-Null
-          Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue | Out-Null
-        `
-
-        const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${enableScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
-        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
-        await saveSettingInternal('game_booster_active', 'true')
-        return { success: true, active: true }
-      } else {
-        // WYŁĄCZENIE TRYBU GRY
-        const originalPlan = await getSettingInternal('original_power_plan_guid', '381b4222-f694-41f0-9685-ff5bb260df2e') // Domyślnie Zrównoważony
-
-        const disableScript = `
-          powercfg /setactive ${originalPlan} | Out-Null
-
-          $interfaces = Get-ChildItem -Path "HKLM:\\System\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces" -ErrorAction SilentlyContinue
-          if ($interfaces) {
-              foreach ($i in $interfaces) {
-                  Remove-ItemProperty -Path $i.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue | Out-Null
-                  Remove-ItemProperty -Path $i.PSPath -Name "TCPNoDelay" -ErrorAction SilentlyContinue | Out-Null
-              }
-          }
-
-          Start-Service -Name SysMain -ErrorAction SilentlyContinue | Out-Null
-          Start-Service -Name Spooler -ErrorAction SilentlyContinue | Out-Null
-        `
-
-        const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${disableScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
-        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
-        await saveSettingInternal('game_booster_active', 'false')
-        return { success: true, active: false }
+      } catch (err) {
+        console.error('[Optimizer IPC] Failed to fetch running processes:', err)
       }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+
+      return { success: true, data: Array.from(gamesMap.values()) }
+    } catch (err: any) {
+      return { success: false, error: err.message }
     }
   })
+
+  // 10. Dodawanie własnej gry
+  ipcMain.handle('add-custom-game', async (_, game: { name: string; exe: string }) => {
+    if (!game || !game.exe) return { success: false, error: 'Błędne dane aplikacji.' }
+    try {
+      const customGamesStr = await getSettingInternal('game_booster_custom_games', '[]')
+      const customGames: { name: string; exe: string }[] = JSON.parse(customGamesStr)
+
+      if (customGames.some((g) => g.exe.toLowerCase() === game.exe.toLowerCase())) {
+        return { success: false, error: 'Ta gra jest już na liście.' }
+      }
+
+      customGames.push(game)
+      await saveSettingInternal('game_booster_custom_games', JSON.stringify(customGames))
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  // 11. Usuwanie własnej gry
+  ipcMain.handle('delete-custom-game', async (_, exe: string) => {
+    if (!exe) return { success: false, error: 'Brak nazwy pliku wykonywalnego.' }
+    try {
+      const customGamesStr = await getSettingInternal('game_booster_custom_games', '[]')
+      const customGames: { name: string; exe: string }[] = JSON.parse(customGamesStr)
+
+      const filtered = customGames.filter((g) => g.exe.toLowerCase() !== exe.toLowerCase())
+      await saveSettingInternal('game_booster_custom_games', JSON.stringify(filtered))
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  // Uruchomienie skanera procesów gier w tle
+  startGameScanner()
 }
 

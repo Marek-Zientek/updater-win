@@ -92,6 +92,9 @@ const api = {
     ipcRenderer.invoke('toggle-privacy-setting', key, enabled),
   getGameBoosterStatus: () => ipcRenderer.invoke('get-game-booster-status'),
   toggleGameBooster: (enable: boolean) => ipcRenderer.invoke('toggle-game-booster', enable),
+  getMonitoredGames: () => ipcRenderer.invoke('get-monitored-games'),
+  addCustomGame: (game: { name: string; exe: string }) => ipcRenderer.invoke('add-custom-game', game),
+  deleteCustomGame: (exe: string) => ipcRenderer.invoke('delete-custom-game', exe),
   auth: {
     register: (data: any) => ipcRenderer.invoke('auth-register', data),
     login: (data: any) => ipcRenderer.invoke('auth-login', data),

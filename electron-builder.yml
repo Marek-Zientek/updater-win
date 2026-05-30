@@ -11,6 +11,11 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+extraResources:
+  - from: node_modules/.prisma
+    to: node_modules/.prisma
+  - from: node_modules/@prisma/client
+    to: node_modules/@prisma/client
 win:
   executableName: my-app
 nsis:

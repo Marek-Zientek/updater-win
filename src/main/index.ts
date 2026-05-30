@@ -27,6 +27,7 @@ import { setupBackupIPC } from './ipc/backup'
 import { setupBloatwareIPC } from './ipc/bloatware'
 import { setupNetworkIPC } from './ipc/network'
 import { setupPeripheralsIPC } from './ipc/peripherals'
+import { initializeDatabase } from './db'
 
 let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
@@ -235,7 +236,10 @@ async function runAutoCheckScheduler(): Promise<void> {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Inicjalizacja tabel bazy danych (SQLite / Prisma) w środowisku produkcyjnym
+  await initializeDatabase()
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 

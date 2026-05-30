@@ -11,3 +11,4 @@ dev.db
 *.db-journal
 *.db-shm
 *.db-wal
+screen/*.mp4

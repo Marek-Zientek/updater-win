@@ -14,8 +14,8 @@ asarUnpack:
 extraResources:
   - from: node_modules/.prisma
     to: node_modules/.prisma
-  - from: node_modules/@prisma/client
-    to: node_modules/@prisma/client
+  - from: node_modules/@prisma
+    to: node_modules/@prisma
 win:
   executableName: my-app
 nsis:

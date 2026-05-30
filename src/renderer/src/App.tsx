@@ -16,6 +16,7 @@ import { Bloatware } from './pages/Bloatware'
 import { Network } from './pages/Network'
 import { Peripherals } from './pages/Peripherals'
 import { PerformanceHUD } from './pages/PerformanceHUD'
+import { MultiInstaller } from './pages/MultiInstaller'
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="peripherals" element={<Peripherals />} />
           <Route path="backup" element={<Backup />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="multi-installer" element={<MultiInstaller />} />
         </Route>
       </Routes>
     </HashRouter>

@@ -90,6 +90,8 @@ const api = {
   getPrivacySettings: () => ipcRenderer.invoke('get-privacy-settings'),
   togglePrivacySetting: (key: string, enabled: boolean) =>
     ipcRenderer.invoke('toggle-privacy-setting', key, enabled),
+  getGameBoosterStatus: () => ipcRenderer.invoke('get-game-booster-status'),
+  toggleGameBooster: (enable: boolean) => ipcRenderer.invoke('toggle-game-booster', enable),
   auth: {
     register: (data: any) => ipcRenderer.invoke('auth-register', data),
     login: (data: any) => ipcRenderer.invoke('auth-login', data),

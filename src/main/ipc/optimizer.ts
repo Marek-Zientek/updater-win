@@ -3,6 +3,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import * as fs from 'fs'
 import * as path from 'path'
+import { getSettingInternal, saveSettingInternal } from './settings'
 
 const execAsync = promisify(exec)
 
@@ -165,6 +166,16 @@ function getBrowserCachePaths(): string[] {
     }
   }
   return paths
+}
+
+async function isGameBoosterActive(): Promise<boolean> {
+  if (process.platform !== 'win32') return false
+  try {
+    const active = await getSettingInternal('game_booster_active', 'false')
+    return active === 'true'
+  } catch {
+    return false
+  }
 }
 
 export function setupOptimizerIPC(): void {
@@ -437,4 +448,89 @@ export function setupOptimizerIPC(): void {
       return { success: false, error: error.message }
     }
   })
+
+  // 7. Status trybu gry (Game Booster)
+  ipcMain.handle('get-game-booster-status', async () => {
+    try {
+      const active = await isGameBoosterActive()
+      return { success: true, active }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 8. Przełączanie trybu gry (Game Booster)
+  ipcMain.handle('toggle-game-booster', async (_, enable: boolean) => {
+    if (process.platform !== 'win32') {
+      return { success: false, error: 'Ta funkcja jest dostępna tylko w systemie Windows.' }
+    }
+
+    try {
+      if (enable) {
+        // POBIERZ AKTUALNY PLAN ZASILANIA
+        const psGetPlan = `
+          (Get-CimInstance -Namespace root\\cimv2\\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive }).ElementID
+        `
+        const { stdout } = await execAsync(
+          `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psGetPlan.trim()}"`
+        )
+        const currentPlan = stdout.trim()
+        if (currentPlan && currentPlan !== 'e9a22b07-e21a-477b-8a17-8e654d93c6b2') {
+          await saveSettingInternal('original_power_plan_guid', currentPlan)
+        }
+
+        // SKRYPT WŁĄCZAJĄCY TRYB GRY
+        const enableScript = `
+          $ultimateGuid = 'e9a22b07-e21a-477b-8a17-8e654d93c6b2'
+          $plan = Get-CimInstance -Namespace root\\cimv2\\power -ClassName Win32_PowerPlan | Where-Object { $_.ElementID -eq $ultimateGuid }
+          if (-not $plan) {
+              powercfg /duplicate-scheme $ultimateGuid | Out-Null
+          }
+          powercfg /setactive $ultimateGuid | Out-Null
+
+          $interfaces = Get-ChildItem -Path "HKLM:\\System\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces" -ErrorAction SilentlyContinue
+          if ($interfaces) {
+              foreach ($i in $interfaces) {
+                  Set-ItemProperty -Path $i.PSPath -Name "TcpAckFrequency" -Value 1 -Type DWord -ErrorAction SilentlyContinue | Out-Null
+                  Set-ItemProperty -Path $i.PSPath -Name "TCPNoDelay" -Value 1 -Type DWord -ErrorAction SilentlyContinue | Out-Null
+              }
+          }
+
+          Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue | Out-Null
+          Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue | Out-Null
+        `
+
+        const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${enableScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+        await saveSettingInternal('game_booster_active', 'true')
+        return { success: true, active: true }
+      } else {
+        // WYŁĄCZENIE TRYBU GRY
+        const originalPlan = await getSettingInternal('original_power_plan_guid', '381b4222-f694-41f0-9685-ff5bb260df2e') // Domyślnie Zrównoważony
+
+        const disableScript = `
+          powercfg /setactive ${originalPlan} | Out-Null
+
+          $interfaces = Get-ChildItem -Path "HKLM:\\System\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces" -ErrorAction SilentlyContinue
+          if ($interfaces) {
+              foreach ($i in $interfaces) {
+                  Remove-ItemProperty -Path $i.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue | Out-Null
+                  Remove-ItemProperty -Path $i.PSPath -Name "TCPNoDelay" -ErrorAction SilentlyContinue | Out-Null
+              }
+          }
+
+          Start-Service -Name SysMain -ErrorAction SilentlyContinue | Out-Null
+          Start-Service -Name Spooler -ErrorAction SilentlyContinue | Out-Null
+        `
+
+        const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${disableScript.replace(/\n/g, '; ').replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+        await saveSettingInternal('game_booster_active', 'false')
+        return { success: true, active: false }
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
 }
+

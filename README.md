@@ -11,26 +11,31 @@ Kompleksowe, nowoczesne i bezpieczne narzędzie do zarządzania aktualizacjami o
 * Bezpieczna instalacja i aktualizacja jednym kliknięciem.
 * Pętla sprawdzania aktualizacji w tle z możliwością konfiguracji harmonogramu i automatyczną instalacją (dla wszystkich aplikacji lub zdefiniowanej białej listy).
 
-### 2. 🛡️ Optymalizator Telemetrii i Prywatności
-* Blokowanie zbędnego śledzenia, diagnostyki i wysyłania danych (DiagTrack).
-* Wyłączanie raportowania błędów (WerSvc).
-* Dezaktywacja Cortany i wyszukiwarki Bing w menu Start.
-* Blokowanie reklam systemowych i automatycznego instalowania promowanych gier/aplikacji.
+### 2. ⚡ Szybki Instalator Pakietowy (Multi-Installer)
+* Kafelkowy katalog popularnego darmowego oprogramowania pogrupowany tematycznie (Przeglądarki, Narzędzia, Rozrywka, Programowanie).
+* Sekwencyjne instalowanie wielu zaznaczonych aplikacji w tle za pomocą WinGet z pełną obsługą cichej instalacji.
+* Obsługa i wizualizacja statusu kolejki instalacyjnej w czasie rzeczywistym.
 
-### 3. 🧹 Głębokie Czyszczenie Dysku (Extended Disk Cleaner)
-* Szybkie skanowanie i czyszczenie folderów tymczasowych (`Temp`).
-* Logi systemowe i raporty błędów.
-* Pamięć podręczna (cache) przeglądarek.
-* **Zaawansowane**: Czyszczenie katalogów `Prefetch` oraz bufora pobierania Windows Update (`SoftwareDistribution\Download`) z wykorzystaniem podniesionych uprawnień PowerShell.
+### 3. 🛡️ Optymalizator Telemetrii, Prywatności & Game Booster
+* Blokowanie zbędnego śledzenia, diagnostyki i wysyłania danych (DiagTrack) oraz raportowania błędów (WerSvc).
+* Dezaktywacja Cortany i wyszukiwarki Bing w menu Start, oraz blokada reklam i promowanych gier.
+* **DNS & Hosts Modifier**: Sieciowe blokowanie telemetrii Microsoft, Nvidia, Adobe na poziomie pliku `hosts`.
+* **Game Booster (Tryb Gry)**:
+  - Aktywacja systemowego profilu zasilania **Najwyższa wydajność** (Ultimate Performance).
+  - Obniżenie pingu poprzez optymalizację opóźnień sieciowych w rejestrze (wyłączenie algorytmu Nagle'a).
+  - Tymczasowe wyłączanie zbędnych usług systemowych w tle (`SysMain`, `Spooler`) na czas grania, z automatycznym przywracaniem po wyłączeniu trybu gry.
 
-### 4. 🗑️ Inteligentny Deinstalator (Bloatware Leftover Remover)
-* Detekcja preinstalowanego oprogramowania bloatware (np. gry z mikropłatnościami, zbędne asystenty).
-* Czysta deinstalacja z konta użytkownika.
-* **Zaawansowane**: Automatyczne skanowanie i usuwanie pozostałości w rejestrze systemowym (`HKCU`) oraz katalogach `%localappdata%\Packages` po usuniętej aplikacji.
+### 4. 🧹 Głębokie Czyszczenie Dysku (Extended Disk Cleaner)
+* Szybkie skanowanie i czyszczenie folderów tymczasowych (`Temp`), logów systemowych oraz pamięci podręcznej przeglądarek.
+* Czyszczenie katalogów `Prefetch` oraz bufora pobierania Windows Update (`SoftwareDistribution\Download`).
 
-### 5. 💾 Automatyczne Kopia Zapasowa (Restore Points)
-* Zintegrowany mechanizm tworzenia systemowych punktów przywracania Windows przed wprowadzeniem zmian w rejestrze lub deinstalacją bloatware.
-* Blokujący interfejs z jasną komunikacją zatwierdzenia monitu kontroli konta (UAC).
+### 5. 🗑️ Inteligentny Deinstalator (Bloatware Leftover Remover)
+* Detekcja preinstalowanego oprogramowania bloatware Windows.
+* Automatyczne skanowanie i usuwanie pozostałości w rejestrze systemowym (`HKCU`) oraz katalogach `%localappdata%\Packages` po usuniętej aplikacji.
+
+### 6. 💾 Automatyczna Kopia Zapasowa & Menedżer Przywracania
+* Tworzenie punktów przywracania Windows przed wprowadzaniem modyfikacji w systemie.
+* Wbudowany **Menedżer Przywracania (Rollback Manager)** umożliwiający uruchomienie systemowego narzędzia przywracania bezpośrednio z poziomu aplikacji.
 
 ---
 
@@ -69,9 +74,7 @@ npm run build:win
 **Co dzieje się pod maską?**
 1. Skrypt uruchamia `npm run typecheck`, aby upewnić się o braku błędów w TypeScript.
 2. Następuje bundlowanie kodu źródłowego przy pomocy `electron-vite build`.
-3. Narzędzie `electron-builder` pakuje aplikację do instalatora `.exe` (domyślnie w wersji jednostronicowego instalatora instalującego program w katalogu AppData użytkownika).
-
-Plik wyjściowy `.exe` (np. `my-app Setup 1.0.0.exe`) zostanie wygenerowany w nowo utworzonym folderze **`dist/`** w głównym katalogu projektu.
+3. Narzędzie `electron-builder` pakuje aplikację do instalatora `.exe` w katalogu **`dist/`** w głównym folderze projektu.
 
 ---
 
@@ -82,24 +85,6 @@ Aby uruchomić aplikację w trybie deweloperskim z przeładowywaniem na żywo (H
 ```bash
 npm run dev
 ```
-
----
-
-## 👨‍💻 Analiza Rozbudowy (Senior Developer Road-map)
-
-Jako Senior Developer, widzę następujące kierunki rozbudowy aplikacji, które wniosą największą wartość biznesową i techniczną:
-
-### A. Integracja z Harmonogramem Zadań Windows (Task Scheduler API)
-* **Obecnie**: Pętla aktualizacji działa w tle tylko wtedy, gdy aplikacja jest zminimalizowana w trayu.
-* **Cel**: Rejestrowanie natywnego zadania w harmonogramie Windows (`schtasks.exe`), które uruchomi proces aktualizacji Winget o wybranej godzinie w tle (nawet przy wyłączonej aplikacji).
-
-### B. Wsparcie dla wielu użytkowników i uprawnień (UAC Elevation Service)
-* **Obecnie**: Aplikacja prosi o UAC osobno przy instalacji programów, sterowników czy punktów przywracania.
-* **Cel**: Wydzielenie małego lokalnego serwisu systemowego (Windows Service) działającego z uprawnieniami SYSTEM. Aplikacja kliencka komunikowałaby się z nim przez IPC (Named Pipes), co eliminowałoby wyskakujące monity UAC podczas codziennych aktualizacji.
-
-### C. Zaawansowana Telemetria Sieciowa i Firewall (DNS/Host Block)
-* **Obecnie**: Blokujemy telemetrię na poziomie usług i kluczy rejestru.
-* **Cel**: Dodanie modułu automatycznie modyfikującego plik `C:\Windows\System32\drivers\etc\hosts` w celu zablokowania znanych serwerów telemetrycznych Microsoftu, Adobe czy Google na poziomie sieciowym.
 
 ---
 

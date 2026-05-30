@@ -104,6 +104,8 @@ export interface IHardwareAPI {
     key: string,
     enabled: boolean
   ) => Promise<{ success: boolean; elevated?: boolean; error?: string }>
+  getGameBoosterStatus: () => Promise<{ success: boolean; active: boolean; error?: string }>
+  toggleGameBooster: (enable: boolean) => Promise<{ success: boolean; active: boolean; error?: string }>
   auth: IAuthAPI
 }
 

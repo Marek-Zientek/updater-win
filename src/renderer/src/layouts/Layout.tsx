@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, Cpu, LogOut, Grid, Cpu as CpuIcon, Layers, Database, Fan, Zap, HardDrive, Info, Settings as SettingsIcon, BarChart2, Gauge, Trash2, Globe, Gamepad, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Package, Cpu, LogOut, Grid, Cpu as CpuIcon, Layers, Database, Fan, Zap, HardDrive, Info, Settings as SettingsIcon, BarChart2, Gauge, Trash2, Globe, Gamepad, Menu, X, ChevronLeft, ChevronRight, DownloadCloud } from 'lucide-react'
 
 export function Layout({ user, onLogout }: { user: any; onLogout: () => void }) {
   const location = useLocation()
@@ -40,6 +40,7 @@ export function Layout({ user, onLogout }: { user: any; onLogout: () => void }) 
   const navLinks = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { to: '/software', label: 'Oprogramowanie', icon: <Package size={20} /> },
+    { to: '/multi-installer', label: 'Szybki Instalator', icon: <DownloadCloud size={20} /> },
     { to: '/hardware', label: 'Sprzęt', icon: <Cpu size={20} />, subLinks: true },
     { to: '/performance', label: 'Wydajność', icon: <BarChart2 size={20} /> },
     { to: '/optimizer', label: 'Optymalizator', icon: <Gauge size={20} /> },

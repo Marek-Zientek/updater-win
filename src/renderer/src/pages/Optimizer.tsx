@@ -27,7 +27,7 @@ interface CleanupStats {
 }
 
 export function Optimizer() {
-  const [activeTab, setActiveTab] = useState<'cleanup' | 'startup' | 'privacy'>('cleanup')
+  const [activeTab, setActiveTab] = useState<'cleanup' | 'startup' | 'privacy' | 'gamebooster'>('cleanup')
 
   // Stany dla Czyszczenia Dysku
   const [cleanupStats, setCleanupStats] = useState<CleanupStats>({
@@ -56,6 +56,9 @@ export function Optimizer() {
   const [togglingPrivacyKey, setTogglingPrivacyKey] = useState<string | null>(null)
   const [creatingRestorePoint, setCreatingRestorePoint] = useState(false)
   const [restorePointStatus, setRestorePointStatus] = useState('')
+  const [gameBoosterActive, setGameBoosterActive] = useState(false)
+  const [loadingGameBooster, setLoadingGameBooster] = useState(false)
+  const [togglingGameBooster, setTogglingGameBooster] = useState(false)
 
   // Pobieranie danych
   const loadCleanupStats = async () => {
@@ -140,6 +143,27 @@ export function Optimizer() {
     setTogglingPrivacyKey(null)
   }
 
+  const loadGameBoosterStatus = async () => {
+    setLoadingGameBooster(true)
+    const res = await window.api.getGameBoosterStatus()
+    if (res.success) {
+      setGameBoosterActive(res.active)
+    }
+    setLoadingGameBooster(false)
+  }
+
+  const handleToggleGameBooster = async () => {
+    setTogglingGameBooster(true)
+    const nextState = !gameBoosterActive
+    const res = await window.api.toggleGameBooster(nextState)
+    if (res.success) {
+      setGameBoosterActive(res.active)
+    } else {
+      alert(res.error || 'Wystąpił błąd podczas przełączania trybu gry.')
+    }
+    setTogglingGameBooster(false)
+  }
+
   useEffect(() => {
     if (activeTab === 'cleanup') {
       loadCleanupStats()
@@ -147,6 +171,8 @@ export function Optimizer() {
       loadStartupApps()
     } else if (activeTab === 'privacy') {
       loadPrivacySettings()
+    } else if (activeTab === 'gamebooster') {
+      loadGameBoosterStatus()
     }
   }, [activeTab])
 
@@ -203,6 +229,12 @@ export function Optimizer() {
             onClick={() => setActiveTab('privacy')}
           >
             Prywatność
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'gamebooster' ? 'active-gamebooster' : ''}`}
+            onClick={() => setActiveTab('gamebooster')}
+          >
+            Tryb Gry
           </button>
         </div>
       </header>
@@ -373,7 +405,7 @@ export function Optimizer() {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'privacy' ? (
         /* Panel Prywatności i Telemetrii */
         <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px' }}>
           <div className="flex justify-between items-center mb-lg" style={{ marginBottom: '20px' }}>
@@ -546,6 +578,96 @@ export function Optimizer() {
             </div>
           )}
         </div>
+      ) : (
+        /* Panel Trybu Gry (Game Booster) */
+        <div className="flex flex-col gap-lg fade-in">
+          <div className="glass-panel gamebooster-main flex flex-col items-center py-xl" style={{ gap: '24px', position: 'relative', overflow: 'hidden', borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '40px' }}>
+            <div className={`gauge-circle ${gameBoosterActive ? 'gamebooster-on' : ''}`} style={{ width: '220px', height: '220px', borderRadius: '50%', border: '4px solid rgba(255, 255, 255, 0.04)', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s ease', background: 'conic-gradient(rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.03) 100%)' }}>
+              <div className="gauge-inner flex flex-col items-center justify-center" style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'rgba(11, 12, 16, 0.8)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <Zap size={32} className="gauge-icon mb-xs" style={{ color: gameBoosterActive ? '#e040fb' : 'var(--color-text-muted)' }} />
+                <span className="gauge-value" style={{ fontSize: '20px', fontWeight: 800, color: '#fff', textTransform: 'uppercase', margin: '4px 0' }}>
+                  {gameBoosterActive ? 'AKTYWNY' : 'NIEAKTYWNY'}
+                </span>
+                <span className="gauge-lbl" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Tryb Gry</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-sm">
+              <button
+                className="btn btn-primary flex items-center gap-xs"
+                style={{
+                  background: gameBoosterActive ? 'rgba(224, 64, 251, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  borderColor: gameBoosterActive ? '#e040fb' : 'rgba(255,255,255,0.1)',
+                  color: gameBoosterActive ? '#fca5a5' : '#fff',
+                  boxShadow: gameBoosterActive ? '0 0 20px rgba(224, 64, 251, 0.3)' : 'none',
+                  padding: '12px 28px',
+                  borderRadius: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.3s'
+                }}
+                onClick={handleToggleGameBooster}
+                disabled={loadingGameBooster || togglingGameBooster}
+              >
+                {togglingGameBooster ? (
+                  <>
+                    <div className="loader-btn-spin"></div>
+                    <span>Przełączanie...</span>
+                  </>
+                ) : (
+                  <span>{gameBoosterActive ? 'Deaktywuj Tryb Gry' : 'Aktywuj Tryb Gry'}</span>
+                )}
+              </button>
+              <p className="text-muted text-xs text-center max-w-[400px]" style={{ margin: '12px 0 0 0', lineHeight: 1.5 }}>
+                Przełączenie trybu gry wymaga zatwierdzenia monitu administratora (UAC). Zmiany są w 100% bezpieczne i w pełni odwracalne po wyłączeniu trybu.
+              </p>
+            </div>
+          </div>
+
+          <div className="startup-list">
+            <h3 className="flex items-center gap-sm" style={{ fontSize: '16px', margin: '12px 0 4px 0', fontWeight: 700 }}>
+              <Zap size={18} style={{ color: '#e040fb' }} />
+              Wprowadzane optymalizacje systemowe
+            </h3>
+
+            <div className="startup-card glass-panel flex items-center justify-between" style={{ padding: '16px 20px', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div className="flex-1 min-w-0 pr-lg">
+                <h4 className="startup-name" style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#fff' }}>Plan Zasilania "Najwyższa Wydajność" (Ultimate Performance)</h4>
+                <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%', margin: '4px 0 0 0' }}>
+                  Aktywuje specjalny, ukryty profil zasilania systemu Windows, eliminujący oszczędzanie energii procesora pod kątem gier.
+                </p>
+              </div>
+              <span className={`status-badge ${gameBoosterActive ? 'active' : 'disabled'}`} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', background: gameBoosterActive ? 'rgba(224, 64, 251, 0.1)' : 'rgba(255, 255, 255, 0.05)', color: gameBoosterActive ? '#e040fb' : 'var(--color-text-muted)', border: '1px solid' + (gameBoosterActive ? 'rgba(224, 64, 251, 0.2)' : 'rgba(255, 255, 255, 0.05)') }}>
+                {gameBoosterActive ? 'Włączone' : 'Standardowy plan'}
+              </span>
+            </div>
+
+            <div className="startup-card glass-panel flex items-center justify-between" style={{ padding: '16px 20px', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div className="flex-1 min-w-0 pr-lg">
+                <h4 className="startup-name" style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#fff' }}>Redukcja Opóźnień Sieciowych (Wyłączenie algorytmu Nagle'a)</h4>
+                <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%', margin: '4px 0 0 0' }}>
+                  Wyłącza grupowanie pakietów TCP w rejestrze sieciowym, co zmniejsza pingi w grach sieciowych do minimum.
+                </p>
+              </div>
+              <span className={`status-badge ${gameBoosterActive ? 'active' : 'disabled'}`} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', background: gameBoosterActive ? 'rgba(224, 64, 251, 0.1)' : 'rgba(255, 255, 255, 0.05)', color: gameBoosterActive ? '#e040fb' : 'var(--color-text-muted)', border: '1px solid' + (gameBoosterActive ? 'rgba(224, 64, 251, 0.2)' : 'rgba(255, 255, 255, 0.05)') }}>
+                {gameBoosterActive ? 'Włączone' : 'Standardowy TCP'}
+              </span>
+            </div>
+
+            <div className="startup-card glass-panel flex items-center justify-between" style={{ padding: '16px 20px', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="flex-1 min-w-0 pr-lg">
+                <h4 className="startup-name" style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#fff' }}>Tymczasowe wstrzymanie usług tła (SysMain i Spooler)</h4>
+                <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%', margin: '4px 0 0 0' }}>
+                  Tymczasowo zatrzymuje usługi SysMain (Superfetch) oraz Bufor Wydruku, uwalniając pamięć RAM i procesor.
+                </p>
+              </div>
+              <span className={`status-badge ${gameBoosterActive ? 'active' : 'disabled'}`} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', background: gameBoosterActive ? 'rgba(224, 64, 251, 0.1)' : 'rgba(255, 255, 255, 0.05)', color: gameBoosterActive ? '#e040fb' : 'var(--color-text-muted)', border: '1px solid' + (gameBoosterActive ? 'rgba(224, 64, 251, 0.2)' : 'rgba(255, 255, 255, 0.05)') }}>
+                {gameBoosterActive ? 'Zatrzymane' : 'Działają w tle'}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Styled JSX */}
@@ -627,6 +749,18 @@ export function Optimizer() {
           border-color: #10b981;
           color: #34d399;
           box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+        }
+
+        .tab-btn.active-gamebooster {
+          background: rgba(224, 64, 251, 0.1);
+          border-color: #e040fb;
+          color: #f48fb1;
+          box-shadow: 0 0 15px rgba(224, 64, 251, 0.15);
+        }
+
+        .gauge-circle.gamebooster-on {
+          border-color: rgba(224, 64, 251, 0.3) !important;
+          box-shadow: 0 0 30px rgba(224, 64, 251, 0.2) !important;
         }
 
         /* Cleanup Gauge */

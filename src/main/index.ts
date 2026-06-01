@@ -28,6 +28,7 @@ import { setupBloatwareIPC } from './ipc/bloatware'
 import { setupNetworkIPC } from './ipc/network'
 import { setupPeripheralsIPC } from './ipc/peripherals'
 import { initializeDatabase } from './db'
+import { startRemoteServer, stopRemoteServer, getRemoteServerStatus } from './remoteServer'
 
 let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
@@ -313,6 +314,23 @@ app.whenReady().then(async () => {
   setupNetworkIPC()
   setupPeripheralsIPC()
 
+  // Zdalny Monitoring IPC
+  ipcMain.handle('get-remote-server-config', async () => {
+    return getRemoteServerStatus()
+  })
+
+  ipcMain.handle('toggle-remote-server', async (_, enable: boolean, port: number) => {
+    if (enable) {
+      const res = await startRemoteServer(port, (pin) => {
+        console.log(`[RemoteServer] Uruchomiono serwer na porcie ${port}. Kod PIN: ${pin}`)
+      })
+      return res
+    } else {
+      stopRemoteServer()
+      return { success: true }
+    }
+  })
+
   ipcMain.on('resize-window', (_, width, height) => {
     const win = BrowserWindow.getFocusedWindow()
     if (win) {
@@ -320,6 +338,16 @@ app.whenReady().then(async () => {
       win.center()
     }
   })
+
+  // Autostart zdalnego serwera z bazy danych
+  const remoteEnabled = await getSettingInternal('remote_server_enabled', 'false')
+  if (remoteEnabled === 'true') {
+    const remotePortStr = await getSettingInternal('remote_server_port', '9090')
+    const remotePort = parseInt(remotePortStr, 10) || 9090
+    startRemoteServer(remotePort, (pin) => {
+      console.log(`[RemoteServer] Serwer uruchomiony automatycznie na porcie ${remotePort}. PIN: ${pin}`)
+    }).catch(console.error)
+  }
 
   createWindow()
   createTray()

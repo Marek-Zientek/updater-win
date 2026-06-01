@@ -135,7 +135,10 @@ const api = {
   },
   getHardwareInfo: () => ipcRenderer.invoke('get-static-hardware'),
   getHardwareSpecsheet: (type: 'cpu' | 'gpu' | 'ram' | 'network', modelName: string) =>
-    ipcRenderer.invoke('get-hardware-specsheet', type, modelName)
+    ipcRenderer.invoke('get-hardware-specsheet', type, modelName),
+  getRemoteServerConfig: () => ipcRenderer.invoke('get-remote-server-config'),
+  toggleRemoteServer: (enable: boolean, port: number) =>
+    ipcRenderer.invoke('toggle-remote-server', enable, port)
 }
 
 if (process.contextIsolated) {

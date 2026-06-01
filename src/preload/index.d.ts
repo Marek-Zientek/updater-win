@@ -139,6 +139,8 @@ export interface IHardwareAPI {
   scanWin32Leftovers: (appName: string, publisher: string) => Promise<{ success: boolean; files: string[]; registry: string[]; error?: string }>
   cleanWin32Leftovers: (files: string[], registry: string[]) => Promise<{ success: boolean; filesDeleted: number; regsDeleted: number; errors: string[] }>
   getHardwareSpecsheet: (type: 'cpu' | 'gpu' | 'ram' | 'network', modelName: string) => Promise<{ success: boolean; data?: any; error?: string }>
+  getRemoteServerConfig: () => Promise<{ isRunning: boolean; port: number; pin: string; ips: string[] }>
+  toggleRemoteServer: (enable: boolean, port: number) => Promise<{ success: boolean; error?: string }>
   auth: IAuthAPI
 }
 

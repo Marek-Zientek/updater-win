@@ -181,7 +181,7 @@ function getBrowserCachePaths(): string[] {
   return paths
 }
 
-async function isGameBoosterActive(): Promise<boolean> {
+export async function isGameBoosterActive(): Promise<boolean> {
   if (process.platform !== 'win32') return false
   try {
     const active = await getSettingInternal('game_booster_active', 'false')

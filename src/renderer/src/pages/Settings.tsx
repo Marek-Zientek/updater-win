@@ -13,7 +13,9 @@ import {
   UploadCloud,
   DownloadCloud,
   Cloud,
-  RefreshCw
+  RefreshCw,
+  Smartphone,
+  Network
 } from 'lucide-react'
 
 export function Settings() {
@@ -48,6 +50,15 @@ export function Settings() {
   const [cloudSyncError, setCloudSyncError] = useState('')
   const [telemetryError, setTelemetryError] = useState('')
   const [telemetrySuccess, setTelemetrySuccess] = useState(false)
+
+  // Remote Server states
+  const [remoteServerEnabled, setRemoteServerEnabled] = useState(false)
+  const [remoteServerPort, setRemoteServerPort] = useState(9090)
+  const [remoteServerPin, setRemoteServerPin] = useState('')
+  const [remoteServerIPs, setRemoteServerIPs] = useState<string[]>([])
+  const [isRemoteServerActive, setIsRemoteServerActive] = useState(false)
+  const [loadingRemoteServer, setLoadingRemoteServer] = useState(false)
+  const [remoteServerError, setRemoteServerError] = useState('')
 
   // HUD & Cleaner Settings
   const [autoCleanEnabled, setAutoCleanEnabled] = useState(false)
@@ -147,6 +158,20 @@ export function Settings() {
 
         const lastSyncedRes = await window.api.getSetting('last_synced_at', 'Nigdy')
         setLastSyncedAt(lastSyncedRes.value || 'Nigdy')
+
+        // Load Remote Server config
+        try {
+          const config = await window.api.getRemoteServerConfig()
+          setIsRemoteServerActive(config.isRunning)
+          setRemoteServerPort(config.port)
+          setRemoteServerPin(config.pin)
+          setRemoteServerIPs(config.ips)
+
+          const enabledSetting = await window.api.getSetting('remote_server_enabled', 'false')
+          setRemoteServerEnabled(enabledSetting.value === 'true')
+        } catch (err) {
+          console.error('Failed to load remote server config:', err)
+        }
 
         const installedRes = await window.api.getInstalledApps()
         if (installedRes.success) {
@@ -350,6 +375,58 @@ export function Settings() {
       setTelemetryError(err.message || 'Błąd komunikacji z serwerem telemetrii.')
     } finally {
       setSubmittingTelemetry(false)
+    }
+  }
+
+  const handleToggleRemoteServer = async (checked: boolean) => {
+    setLoadingRemoteServer(true)
+    setRemoteServerError('')
+    try {
+      await window.api.saveSetting('remote_server_enabled', checked.toString())
+      await window.api.saveSetting('remote_server_port', remoteServerPort.toString())
+      setRemoteServerEnabled(checked)
+
+      const res = await window.api.toggleRemoteServer(checked, remoteServerPort)
+      if (res.success) {
+        const config = await window.api.getRemoteServerConfig()
+        setIsRemoteServerActive(config.isRunning)
+        setRemoteServerPin(config.pin)
+        setRemoteServerIPs(config.ips)
+      } else {
+        setRemoteServerError(res.error || 'Wystąpił błąd włączania serwera.')
+        await window.api.saveSetting('remote_server_enabled', 'false')
+        setRemoteServerEnabled(false)
+        setIsRemoteServerActive(false)
+      }
+    } catch (err: any) {
+      setRemoteServerError(err.message || 'Błąd komunikacji z serwerem.')
+    } finally {
+      setLoadingRemoteServer(false)
+    }
+  }
+
+  const handlePortChange = async (newPort: number) => {
+    setRemoteServerPort(newPort)
+    await window.api.saveSetting('remote_server_port', newPort.toString())
+    if (isRemoteServerActive) {
+      setLoadingRemoteServer(true)
+      try {
+        await window.api.toggleRemoteServer(false, newPort)
+        const res = await window.api.toggleRemoteServer(true, newPort)
+        if (res.success) {
+          const config = await window.api.getRemoteServerConfig()
+          setIsRemoteServerActive(config.isRunning)
+          setRemoteServerPin(config.pin)
+          setRemoteServerIPs(config.ips)
+        } else {
+          setRemoteServerError(res.error || 'Błąd restartu serwera na nowym porcie.')
+          setIsRemoteServerActive(false)
+        }
+      } catch (err: any) {
+        setRemoteServerError(err.message)
+      } finally {
+        setLoadingRemoteServer(false)
+      }
     }
   }
 
@@ -613,6 +690,112 @@ export function Settings() {
                     {telemetryError}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Sekcja: Zdalny Monitoring & Web Dashboard */}
+        <section className="settings-section glass-panel">
+          <h3 className="section-title">
+            <Smartphone size={18} color="var(--color-primary)" />
+            Zdalny Monitoring (Web Dashboard)
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
+            <div className="setting-row" style={{ padding: 0 }}>
+              <div className="setting-info">
+                <span className="setting-label">Serwer Zdalnego Monitoringu</span>
+                <span className="setting-desc">
+                  Uruchamia lokalny serwer HTTP umożliwiający podgląd stanu komputera i zdalne sterowanie z telefonu/przeglądarki
+                </span>
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={remoteServerEnabled}
+                  disabled={loadingRemoteServer}
+                  onChange={(e) => handleToggleRemoteServer(e.target.checked)}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
+            <div className="setting-row" style={{ padding: 0 }}>
+              <div className="setting-info">
+                <span className="setting-label">Port serwera HTTP</span>
+                <span className="setting-desc">
+                  Port nasłuchu dla zdalnego podglądu (domyślnie 9090)
+                </span>
+              </div>
+              <input
+                type="number"
+                value={remoteServerPort}
+                disabled={loadingRemoteServer}
+                onChange={(e) => handlePortChange(parseInt(e.target.value, 10) || 9090)}
+                className="select-custom"
+                style={{ width: '100px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', borderRadius: '8px', padding: '6px' }}
+              />
+            </div>
+
+            {isRemoteServerActive && (
+              <div style={{ background: 'rgba(16, 185, 129, 0.05)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(16, 185, 129, 0.15)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-success)', boxShadow: '0 0 8px var(--color-success)' }}></span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Status: Serwer Uruchomiony</span>
+                  </div>
+                  <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-primary)', fontWeight: 'bold', letterSpacing: '1px' }}>
+                    PIN DOSTĘPU: {remoteServerPin}
+                  </span>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>
+                    Adresy podglądu w sieci lokalnej (LAN):
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {remoteServerIPs.length === 0 ? (
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Brak aktywnych połączeń sieciowych</span>
+                    ) : (
+                      remoteServerIPs.map((ip, idx) => {
+                        const url = `http://${ip}:${remoteServerPort}`
+                        return (
+                          <a
+                            key={idx}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: '12px', color: 'var(--color-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Network size={12} />
+                            <span>{url}</span>
+                          </a>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isRemoteServerActive && !loadingRemoteServer && (
+              <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-muted)' }}></span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Status: Serwer zatrzymany</span>
+              </div>
+            )}
+
+            {loadingRemoteServer && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
+                <RefreshCw size={14} className="animate-spin" color="var(--color-primary)" />
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Konfigurowanie połączeń...</span>
+              </div>
+            )}
+
+            {remoteServerError && (
+              <div style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                {remoteServerError}
               </div>
             )}
           </div>

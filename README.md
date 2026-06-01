@@ -58,6 +58,13 @@ Kompleksowe, nowoczesne i bezpieczne narzędzie do zarządzania aktualizacjami o
 * Tworzenie punktów przywracania Windows przed wprowadzaniem modyfikacji w systemie.
 * Wbudowany **Menedżer Przywracania (Rollback Manager)** umożliwiający uruchomienie systemowego narzędzia przywracania bezpośrednio z poziomu aplikacji.
 
+### 10. 📱 Zdalny Monitoring & Web Dashboard w Przeglądarce
+* **Lokalny serwer HTTP**: uruchamianie wbudowanego, lekkiego serwera HTTP w tle (domyślnie na porcie `9090`).
+* **Autoryzacja kodem PIN**: generowanie unikalnego losowego kodu PIN przy każdym starcie aplikacji desktopowej w celu zabezpieczenia dostępu do danych w sieci lokalnej (LAN).
+* **Wizualizacja stanu na żywo**: dynamiczne, kołowe wykresy SVG pokazujące zużycie procesora (CPU), pamięci RAM oraz dysku systemowego w czasie rzeczywistym.
+* **Temperatury podzespołów**: zdalny odczyt temperatur procesora (CPU) oraz karty graficznej (GPU) z czerwonym podświetleniem ostrzegawczym w przypadku przegrzania (>80°C).
+* **Zdalne Zarządzanie i Zasilanie**: możliwość zdalnego uruchomienia czyszczenia systemu, przełączania Trybu Gry (Game Booster) oraz zdalnego wyłączenia i restartu komputera (zabezpieczone dodatkowym oknem modalnym potwierdzającym wybór).
+
 ---
 
 ## 🛠️ Architektura i Stos Technologiczny

@@ -1365,6 +1365,11 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
         res.end(JSON.stringify({ success: false, error: 'Nie znaleziono żądanego endpointu' }))
       })
 
+      serverInstance.on('error', (err: any) => {
+        isServerRunning = false
+        resolve({ success: false, error: err.message })
+      })
+
       serverInstance.listen(serverPort, () => {
         isServerRunning = true
         onStart(activePin)
@@ -1394,10 +1399,6 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
           })
 
         resolve({ success: true })
-      })
-
-      serverInstance.on('error', (err: any) => {
-        resolve({ success: false, error: err.message })
       })
     } catch (e: any) {
       resolve({ success: false, error: e.message })

@@ -61,9 +61,10 @@ Kompleksowe, nowoczesne i bezpieczne narzędzie do zarządzania aktualizacjami o
 ### 10. 📱 Zdalny Monitoring & Web Dashboard w Przeglądarce
 * **Lokalny serwer HTTP**: uruchamianie wbudowanego, lekkiego serwera HTTP w tle (domyślnie na porcie `9090`).
 * **Autoryzacja kodem PIN**: generowanie unikalnego losowego kodu PIN przy każdym starcie aplikacji desktopowej w celu zabezpieczenia dostępu do danych w sieci lokalnej (LAN).
-* **Wizualizacja stanu na żywo**: dynamiczne, kołowe wykresy SVG pokazujące zużycie procesora (CPU), pamięci RAM oraz dysku systemowego w czasie rzeczywistym.
-* **Temperatury podzespołów**: zdalny odczyt temperatur procesora (CPU) oraz karty graficznej (GPU) z czerwonym podświetleniem ostrzegawczym w przypadku przegrzania (>80°C).
-* **Zdalne Zarządzanie i Zasilanie**: możliwość zdalnego uruchomienia czyszczenia systemu, przełączania Trybu Gry (Game Booster) oraz zdalnego wyłączenia i restartu komputera (zabezpieczone dodatkowym oknem modalnym potwierdzającym wybór).
+* **Wizualizacja stanu na żywo**: dynamiczne, kołowe wykresy SVG pokazujące zużycie procesora (CPU), pamięci RAM oraz wolnego dysku systemowego w czasie rzeczywistym (wykres dysku reprezentuje wolne miejsce w formacie `Wolne: X / Y GB`).
+* **Temperatury podzespołów**: zaawansowany i odporny na brak uprawnień administratora system odczytu temperatur CPU (odpytujący naraz w PowerShell klasy `MSAcpi`, `Win32_PerfFormattedData_Counters_ThermalZoneInformation` i `Win32_TemperatureSensor` z inteligentną estymacją w oparciu o obciążenie jako fallback) oraz karty graficznej (GPU).
+* **Szczegółowa Specyfikacja & Sieć**: wyświetlanie na żywo specyfikacji sprzętu (dokładny model CPU, model GPU wraz z bieżącym obciążeniem %, wersja systemu operacyjnego z architekturą, adres IP) oraz telemetrii sieci (nazwa aktywnej karty sieciowej i prędkość pobierania/wysyłanie w czasie rzeczywistym).
+* **Zdalne Zarządzanie i Zasilanie**: możliwość zdalnego uruchomienia czyszczenia systemu, przełączania Trybu Gry (Game Booster) wraz ze zwalnianiem procesów (Kill Process) bezpośrednio z poziomu przeglądarki, a także zdalnego wyłączenia i restartu komputera (zabezpieczone dodatkowym oknem modalnym potwierdzającym wybór).
 
 ---
 

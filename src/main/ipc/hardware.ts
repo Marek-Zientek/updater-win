@@ -6,6 +6,7 @@ import * as os from 'os'
 import * as fs from 'fs'
 import * as path from 'path'
 import { getSettingInternal, saveSettingInternal } from './settings'
+import { getCpuTemperatureWithFallback } from '../utils/tempHelper'
 import icon from '../../../resources/icon.png?asset'
 import * as https from 'https'
 
@@ -198,7 +199,6 @@ export function setupHardwareIPC() {
     }
   })
 
-  // 2. Pobieranie TYLKO danych dynamicznych (szybkie i lekkie)
   ipcMain.handle('get-dynamic-hardware', async () => {
     try {
       const [mem, load, cpuTemp, cpuSpeed, graphics] = await Promise.all([
@@ -208,6 +208,11 @@ export function setupHardwareIPC() {
         si.cpuCurrentSpeed(),
         si.graphics()
       ])
+
+      const resolvedCpuTemp = await getCpuTemperatureWithFallback(
+        cpuTemp.main || cpuTemp.max || 0,
+        load.currentLoad
+      )
 
       return {
         success: true,
@@ -223,13 +228,15 @@ export function setupHardwareIPC() {
           cpu: {
             load: load.currentLoad,
             loadPerCore: load.cpus.map((c) => c.load),
-            temp: cpuTemp.main,
-            coresTemp: cpuTemp.cores, // Temperatury poszczególnych rdzeni
-            maxTemp: cpuTemp.max,
+            temp: resolvedCpuTemp,
+            coresTemp: cpuTemp.cores && cpuTemp.cores.length > 0
+              ? cpuTemp.cores.map((t) => (t > 15 ? t : resolvedCpuTemp))
+              : [],
+            maxTemp: resolvedCpuTemp,
             currentSpeed: cpuSpeed.avg,
             coresSpeed: cpuSpeed.cores
           },
-          fans: cpuTemp.main > 0 ? [{ label: 'CPU Fan', rpm: 0, temp: cpuTemp.main }] : [], // RPM jest trudne do pobrania w si, ale spróbujemy zmapować temperaturę
+          fans: resolvedCpuTemp > 0 ? [{ label: 'CPU Fan', rpm: 0, temp: resolvedCpuTemp }] : [], // RPM jest trudne do pobrania w si, ale spróbujemy zmapować temperaturę
           gpu: graphics.controllers.map((g) => ({
             model: g.model,
             temp: g.temperatureGpu,
@@ -780,15 +787,21 @@ function startThermalMonitoring(): void {
         return
       }
 
-      const [cpuTemp, graphics] = await Promise.all([
+      const [cpuTemp, graphics, load] = await Promise.all([
         si.cpuTemperature(),
-        si.graphics()
+        si.graphics(),
+        si.currentLoad()
       ])
+
+      const resolvedCpuTemp = await getCpuTemperatureWithFallback(
+        cpuTemp.main || cpuTemp.max || 0,
+        load.currentLoad
+      )
 
       const thresholdStr = await getSettingInternal('thermal_threshold_temp', '85')
       const threshold = parseInt(thresholdStr, 10) || 85
 
-      let maxTemp = cpuTemp.main || cpuTemp.max || 0
+      let maxTemp = resolvedCpuTemp
 
       if (graphics && graphics.controllers) {
         for (const g of graphics.controllers) {

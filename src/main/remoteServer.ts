@@ -1,13 +1,23 @@
 import http from 'http'
 import { exec } from 'child_process'
-import { networkInterfaces, hostname } from 'os'
+import { networkInterfaces, hostname, uptime } from 'os'
 import si from 'systeminformation'
 import { toggleGameBoosterInternal, runCleanupInternal, isGameBoosterActive } from './ipc/optimizer'
+import { getCpuTemperatureWithFallback } from './utils/tempHelper'
 
 let serverInstance: http.Server | null = null
 let activePin = ''
 let serverPort = 9090
 let isServerRunning = false
+
+// Statyczne informacje o systemie i interfejsach sieciowych do wstrzyknięcia do panelu
+const staticSystemInfo = {
+  cpuModel: 'Ładowanie...',
+  gpuModel: 'Ładowanie...',
+  osInfo: 'Ładowanie...'
+}
+
+const networkIfaceNames: Record<string, string> = {}
 
 // Generowanie losowego PIN-u dostępu
 export function generatePin(): string {
@@ -26,6 +36,19 @@ export function getLocalIPs(): string[] {
     }
   }
   return ips
+}
+
+// Formatowanie uptime systemowego (np. 1d 4h 12m)
+function formatUptime(): string {
+  const seconds = uptime()
+  const d = Math.floor(seconds / (3600 * 24))
+  const h = Math.floor((seconds % (3600 * 24)) / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+
+  const dDisplay = d > 0 ? `${d}d ` : ''
+  const hDisplay = h > 0 ? `${h}h ` : ''
+  const mDisplay = m > 0 ? `${m}m` : '0m'
+  return dDisplay + hDisplay + mDisplay
 }
 
 // Spakowany kod HTML + CSS + JS dla Zdalnego Dashboardu
@@ -81,7 +104,7 @@ const getDashboardHtml = (computerName: string) => `
       box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
       padding: 30px;
       width: 100%;
-      max-width: 550px;
+      max-width: 580px;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -237,6 +260,7 @@ const getDashboardHtml = (computerName: string) => `
       display: flex;
       flex-direction: column;
       align-items: center;
+      transition: transform 0.2s;
     }
 
     .metric-title {
@@ -297,9 +321,11 @@ const getDashboardHtml = (computerName: string) => `
       font-size: 11px;
       color: var(--color-muted);
       margin-top: 8px;
+      line-height: 1.3;
+      white-space: nowrap;
     }
 
-    /* LIVE TEMPS */
+    /* LIVE TEMPS & INFO */
     .temps-panel {
       background: rgba(0, 0, 0, 0.15);
       border: 1px solid var(--color-border);
@@ -307,11 +333,12 @@ const getDashboardHtml = (computerName: string) => `
       padding: 16px;
       display: flex;
       justify-content: space-around;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .temp-item {
       text-align: center;
+      flex: 1;
     }
 
     .temp-label {
@@ -335,14 +362,130 @@ const getDashboardHtml = (computerName: string) => `
       text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
     }
 
+    /* PROCESSES PANEL */
+    .processes-panel {
+      background: rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .panel-heading {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--color-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .process-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      font-size: 12px;
+    }
+
+    .process-row:last-child {
+      border-bottom: none;
+    }
+
+    .process-name {
+      font-weight: 600;
+      color: white;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      flex: 1;
+      margin-right: 8px;
+    }
+
+    .process-stats {
+      color: var(--color-muted);
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      margin-right: 12px;
+    }
+
+    .process-cpu {
+      color: var(--color-primary);
+      font-weight: 600;
+      width: 48px;
+      text-align: right;
+    }
+
+    .process-mem {
+      width: 48px;
+      text-align: right;
+    }
+
+    .btn-kill {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--color-danger);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-kill:hover {
+      background: var(--color-danger);
+      color: white;
+    }
+
     /* ACTIONS PANEL */
     .actions-title {
+      display: block;
       font-size: 13px;
       font-weight: 800;
       color: var(--color-muted);
+      margin-top: 30px;
       margin-bottom: 12px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      border-top: 1px solid var(--color-border);
+      padding-top: 24px;
+    }
+
+    /* SPECS & NETWORK PANEL */
+    .system-specs {
+      background: rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+
+    .spec-label {
+      color: var(--color-muted);
+      font-weight: 600;
+    }
+
+    .spec-val {
+      color: white;
+      text-align: right;
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 65%;
     }
 
     .actions-grid {
@@ -568,7 +711,7 @@ const getDashboardHtml = (computerName: string) => `
     <div class="dash-header">
       <div class="comp-info">
         <h3 id="comp-hostname">${computerName}</h3>
-        <span>Połączono lokalnie</span>
+        <span id="comp-uptime">Uptime: --</span>
       </div>
       <button class="btn-logout" onclick="logout()">Wyloguj</button>
     </div>
@@ -577,7 +720,7 @@ const getDashboardHtml = (computerName: string) => `
     <div class="metrics-grid">
       <!-- CPU -->
       <div class="metric-card">
-        <span class="metric-title">Procesor (CPU)</span>
+        <span class="metric-title">Procesor</span>
         <div class="circle-container">
           <svg>
             <circle class="circle-bg"></circle>
@@ -585,7 +728,7 @@ const getDashboardHtml = (computerName: string) => `
           </svg>
           <span class="value-text" id="cpu-val">0%</span>
         </div>
-        <span class="value-subtext" id="cpu-sub">Obciążenie</span>
+        <span class="value-subtext" id="cpu-sub">Taktowanie: --</span>
       </div>
 
       <!-- RAM -->
@@ -598,7 +741,7 @@ const getDashboardHtml = (computerName: string) => `
           </svg>
           <span class="value-text" id="ram-val">0%</span>
         </div>
-        <span class="value-subtext" id="ram-sub">Użycie RAM</span>
+        <span class="value-subtext" id="ram-sub">Użycie: -- / -- GB</span>
       </div>
 
       <!-- DYSK -->
@@ -611,7 +754,7 @@ const getDashboardHtml = (computerName: string) => `
           </svg>
           <span class="value-text" id="disk-val">0%</span>
         </div>
-        <span class="value-subtext" id="disk-sub">Zajęte</span>
+        <span class="value-subtext" id="disk-sub">Wolne: -- GB</span>
       </div>
     </div>
 
@@ -625,6 +768,49 @@ const getDashboardHtml = (computerName: string) => `
       <div class="temp-item">
         <div class="temp-label">Temp. GPU</div>
         <div class="temp-val" id="gpu-temp">--°C</div>
+      </div>
+    </div>
+
+    <!-- SPECYFIKACJA SYSTEMU & TELEMETRIA SIECI -->
+    <div class="system-specs">
+      <div class="panel-heading" style="margin-bottom: 8px;">
+        <span>Specyfikacja & Sieć</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Procesor:</span>
+        <span class="spec-val" id="spec-cpu">Ładowanie...</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Karta graficzna:</span>
+        <span class="spec-val" id="spec-gpu">Ładowanie...</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">System operacyjny:</span>
+        <span class="spec-val" id="spec-os">Ładowanie...</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Połączenie (IP):</span>
+        <span class="spec-val" id="spec-ip">Ładowanie...</span>
+      </div>
+      <div style="border-top: 1px solid rgba(255, 255, 255, 0.03); margin: 8px 0;"></div>
+      <div class="spec-row">
+        <span class="spec-label">Karta sieciowa:</span>
+        <span class="spec-val" id="net-iface">Ładowanie...</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Transfer:</span>
+        <span class="spec-val" id="net-speeds" style="color: var(--color-primary); font-weight: bold;">↓ 0 KB/s | ↑ 0 KB/s</span>
+      </div>
+    </div>
+
+    <!-- NAJBARDZIEJ OBCIĄŻAJĄCE PROCESY -->
+    <div class="processes-panel">
+      <div class="panel-heading">
+        <span>Najbardziej obciążające procesy</span>
+        <span>CPU / RAM</span>
+      </div>
+      <div id="process-list">
+        <div class="text-center py-4 text-xs text-muted" style="text-align: center; padding: 12px 0;">Ładowanie procesów...</div>
       </div>
     </div>
 
@@ -671,7 +857,6 @@ const getDashboardHtml = (computerName: string) => `
     let refreshInterval = null;
     let pendingPowerAction = '';
 
-    // Inicjalizacja: jeśli PIN jest w pamięci, spróbuj pobrać dane
     if (storedPin) {
       checkPinAndLoad(storedPin);
     }
@@ -722,7 +907,6 @@ const getDashboardHtml = (computerName: string) => `
           document.getElementById('auth-panel').style.display = 'none';
           document.getElementById('dashboard-panel').style.display = 'block';
           
-          // Uruchomienie odświeżania na żywo
           updateDashboard();
           refreshInterval = setInterval(updateDashboard, 2000);
         } else {
@@ -755,6 +939,30 @@ const getDashboardHtml = (computerName: string) => `
       circle.style.strokeDashoffset = offset;
     }
 
+    function killProcess(pid) {
+      if (!storedPin) return;
+      if (!confirm('Czy na pewno chcesz ubić ten proces?')) return;
+
+      fetch('/api/action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Remote-Pin': storedPin
+        },
+        body: JSON.stringify({ action: 'kill_process', pid: pid })
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result && result.success) {
+          showToast('Proces został pomyślnie zamknięty!');
+          updateDashboard();
+        } else {
+          showToast('Błąd zamykania procesu', true);
+        }
+      })
+      .catch(() => showToast('Błąd sieci', true));
+    }
+
     function updateDashboard() {
       if (!storedPin) return;
       fetch('/api/status', {
@@ -770,25 +978,60 @@ const getDashboardHtml = (computerName: string) => `
       .then(data => {
         if (!data) return;
 
+        // Uptime
+        document.getElementById('comp-uptime').innerText = 'Uptime: ' + data.uptime;
+
         // CPU
         const cpuPercent = Math.round(data.cpuLoad);
         document.getElementById('cpu-val').innerText = cpuPercent + '%';
         setCirclePercentage('cpu-bar', cpuPercent);
+        document.getElementById('cpu-sub').innerText = 'Taktowanie: ' + data.cpuSpeed + ' GHz';
 
         // RAM
         const ramPercent = Math.round((data.memUsed / data.memTotal) * 100);
         document.getElementById('ram-val').innerText = ramPercent + '%';
         setCirclePercentage('ram-bar', ramPercent);
+        const ramUsedGb = (data.memUsed / (1024 * 1024 * 1024)).toFixed(1);
+        const ramTotalGb = (data.memTotal / (1024 * 1024 * 1024)).toFixed(1);
+        document.getElementById('ram-sub').innerText = 'Użycie: ' + ramUsedGb + ' / ' + ramTotalGb + ' GB';
 
-        // DYSK (główny dysk systemowy, pierwszy w tablicy)
+        // DYSK (Wolne miejsce)
         if (data.disks && data.disks.length > 0) {
           const sysDisk = data.disks[0];
-          const diskPercent = Math.round((sysDisk.used / sysDisk.size) * 100);
-          document.getElementById('disk-val').innerText = diskPercent + '%';
-          setCirclePercentage('disk-bar', diskPercent);
-          
+          const freePercent = Math.round(((sysDisk.size - sysDisk.used) / sysDisk.size) * 100);
+          document.getElementById('disk-val').innerText = freePercent + '%';
+          setCirclePercentage('disk-bar', freePercent);
           const freeGb = Math.round((sysDisk.size - sysDisk.used) / (1024 * 1024 * 1024));
-          document.getElementById('disk-sub').innerText = 'Wolne: ' + freeGb + ' GB';
+          const totalGb = Math.round(sysDisk.size / (1024 * 1024 * 1024));
+          document.getElementById('disk-sub').innerText = 'Wolne: ' + freeGb + ' / ' + totalGb + ' GB';
+        }
+
+        // SPECYFIKACJA SYSTEMU & SIEĆ
+        if (data.specs) {
+          document.getElementById('spec-cpu').innerText = data.specs.cpuModel || '--';
+          document.getElementById('spec-os').innerText = data.specs.osInfo || '--';
+          
+          if (data.gpu && data.gpu.length > 0) {
+            const mainGpu = data.gpu[0];
+            const gpuLoadStr = mainGpu.load !== undefined && mainGpu.load !== null ? ' (' + Math.round(mainGpu.load) + '%)' : '';
+            document.getElementById('spec-gpu').innerText = (data.specs.gpuModel || '--') + gpuLoadStr;
+          } else {
+            document.getElementById('spec-gpu').innerText = data.specs.gpuModel || '--';
+          }
+        }
+        document.getElementById('spec-ip').innerText = window.location.hostname;
+
+        if (data.network) {
+          document.getElementById('net-iface').innerText = data.network.iface || 'Brak';
+          const formatSpeed = (bytesPerSec) => {
+            if (bytesPerSec >= 1024 * 1024) {
+              return (bytesPerSec / (1024 * 1024)).toFixed(1) + ' MB/s';
+            }
+            return (bytesPerSec / 1024).toFixed(0) + ' KB/s';
+          };
+          const down = formatSpeed(data.network.downloadSpeed);
+          const up = formatSpeed(data.network.uploadSpeed);
+          document.getElementById('net-speeds').innerText = '↓ ' + down + ' | ↑ ' + up;
         }
 
         // TEMPERATURY
@@ -811,6 +1054,23 @@ const getDashboardHtml = (computerName: string) => `
           document.getElementById('gpu-temp').innerText = 'Brak GPU';
         }
 
+        // Top procesy
+        const processList = document.getElementById('process-list');
+        if (data.topProcesses && data.topProcesses.length > 0) {
+          processList.innerHTML = data.topProcesses.map(p => \`
+            <div class="process-row">
+              <span class="process-name" title="\${p.name}">\${p.name}</span>
+              <div class="process-stats">
+                <span class="process-cpu">\${p.cpu}% CPU</span>
+                <span class="process-mem">\${p.mem}% RAM</span>
+              </div>
+              <button class="btn-kill" onclick="killProcess(\${p.pid})">Zabij</button>
+            </div>
+          \`).join('');
+        } else {
+          processList.innerHTML = '<div class="text-center py-4 text-xs text-muted" style="text-align: center; padding: 12px 0;">Brak procesów</div>';
+        }
+
         // Status Game Booster
         const btnBooster = document.getElementById('btn-booster');
         if (data.isGameBoosterActive) {
@@ -822,7 +1082,7 @@ const getDashboardHtml = (computerName: string) => `
         }
       })
       .catch(err => {
-        console.error('Błąd pobierania telemetry:', err);
+        console.error('Błąd pobierania telemetrii:', err);
       });
     }
 
@@ -831,7 +1091,6 @@ const getDashboardHtml = (computerName: string) => `
 
       const payload = { action: actionName };
       
-      // Specjalna obsługa wskaźnika ładowania booster/cleanup
       let btn = null;
       let originalText = '';
       if (actionName === 'cleanup') {
@@ -942,7 +1201,6 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
       activePin = generatePin()
 
       serverInstance = http.createServer(async (req, res) => {
-        // Czasowa ochrona CORS i nagłówki odpowiedzi
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Remote-Pin')
@@ -953,14 +1211,12 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
           return
         }
 
-        // Endpoint główny serwujący Dashboard HTML
         if (req.url === '/' && req.method === 'GET') {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
           res.end(getDashboardHtml(hostname()))
           return
         }
 
-        // Weryfikacja PIN-u dostępu
         const requestPin = req.headers['x-remote-pin'] as string
         if (requestPin !== activePin) {
           res.writeHead(401, { 'Content-Type': 'application/json' })
@@ -968,22 +1224,56 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
           return
         }
 
-        // Endpoint GET /api/status - Zwracanie parametrów diagnostycznych
         if (req.url === '/api/status' && req.method === 'GET') {
           try {
-            const [mem, load, cpuTemp, graphics, disks] = await Promise.all([
+            const [mem, load, rawCpuTemp, graphics, disks, cpuSpeed, processes, netStats] = await Promise.all([
               si.mem(),
               si.currentLoad(),
               si.cpuTemperature(),
               si.graphics(),
-              si.fsSize()
+              si.fsSize(),
+              si.cpuCurrentSpeed(),
+              si.processes(),
+              si.networkStats()
             ])
+
+            // Wywołanie zaawansowanego odczytu temperatury z fallbackiem (przekazujemy obciążenie CPU do estymacji)
+            const cpuTemp = await getCpuTemperatureWithFallback(
+              rawCpuTemp.main || rawCpuTemp.max || 0,
+              load.currentLoad
+            )
 
             const boosterActive = await isGameBoosterActive()
 
+            // Filtrowanie i sortowanie procesów
+            const topProcesses = processes.list
+              .sort((a, b) => b.cpu - a.cpu)
+              .slice(0, 5)
+              .map((p) => ({
+                name: p.name,
+                cpu: Math.round(p.cpu * 10) / 10,
+                mem: Math.round(p.mem * 10) / 10,
+                pid: p.pid
+              }))
+
+            // Pobranie statystyk aktywnego interfejsu sieciowego
+            let netDownload = 0
+            let netUpload = 0
+            let activeIface = 'Brak połączenia'
+            if (Array.isArray(netStats) && netStats.length > 0) {
+              const active = netStats.find((n) => n.operstate === 'up') || netStats.find((n) => n.rx_sec > 0 || n.tx_sec > 0) || netStats[0]
+              if (active) {
+                activeIface = active.iface
+                netDownload = active.rx_sec || 0
+                netUpload = active.tx_sec || 0
+              }
+            }
+            const friendlyIfaceName = networkIfaceNames[activeIface] || activeIface
+
             const statusData = {
               cpuLoad: load.currentLoad,
-              cpuTemp: cpuTemp.main || cpuTemp.max || 0,
+              cpuTemp: cpuTemp,
+              cpuSpeed: cpuSpeed.avg || 0,
               memTotal: mem.total,
               memUsed: mem.used,
               disks: disks.map((d) => ({
@@ -997,7 +1287,15 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
                 temp: g.temperatureGpu,
                 load: g.utilizationGpu
               })),
-              isGameBoosterActive: boosterActive
+              isGameBoosterActive: boosterActive,
+              uptime: formatUptime(),
+              topProcesses: topProcesses,
+              network: {
+                iface: friendlyIfaceName,
+                downloadSpeed: netDownload,
+                uploadSpeed: netUpload
+              },
+              specs: staticSystemInfo
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -1009,7 +1307,6 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
           return
         }
 
-        // Endpoint POST /api/action - zdalne sterowanie
         if (req.url === '/api/action' && req.method === 'POST') {
           let body = ''
           req.on('data', (chunk) => {
@@ -1033,13 +1330,25 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
               } else if (action === 'shutdown') {
                 res.writeHead(200, { 'Content-Type': 'application/json' })
                 res.end(JSON.stringify({ success: true, message: 'Wyłączanie komputera...' }))
-                // Uruchomienie wyłączenia z opóźnieniem 5 sekund
                 exec('shutdown /s /t 5 /c "Zdalne zamkniecie systemu przez Web Dashboard"')
               } else if (action === 'reboot') {
                 res.writeHead(200, { 'Content-Type': 'application/json' })
                 res.end(JSON.stringify({ success: true, message: 'Restartowanie komputera...' }))
-                // Uruchomienie restartu z opóźnieniem 5 sekund
                 exec('shutdown /r /t 5 /c "Zdalny restart systemu przez Web Dashboard"')
+              } else if (action === 'kill_process') {
+                const pid = parseInt(payload.pid, 10)
+                if (pid) {
+                  try {
+                    process.kill(pid)
+                  } catch {
+                    exec(`taskkill /f /pid ${pid}`)
+                  }
+                  res.writeHead(200, { 'Content-Type': 'application/json' })
+                  res.end(JSON.stringify({ success: true, message: `Zakończono proces ${pid}` }))
+                } else {
+                  res.writeHead(400, { 'Content-Type': 'application/json' })
+                  res.end(JSON.stringify({ success: false, error: 'Brak prawidlowego PID' }))
+                }
               } else {
                 res.writeHead(400, { 'Content-Type': 'application/json' })
                 res.end(JSON.stringify({ success: false, error: 'Nieznana akcja optymalizacyjna' }))
@@ -1052,7 +1361,6 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
           return
         }
 
-        // Obsługa 404 dla pozostałych url
         res.writeHead(404, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ success: false, error: 'Nie znaleziono żądanego endpointu' }))
       })
@@ -1060,6 +1368,31 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
       serverInstance.listen(serverPort, () => {
         isServerRunning = true
         onStart(activePin)
+
+        // Asynchroniczne pobranie stałych parametrów sprzętowych (raz po starcie serwera)
+        Promise.all([
+          si.cpu(),
+          si.osInfo(),
+          si.graphics(),
+          si.networkInterfaces()
+        ])
+          .then(([cpu, osData, graphics, netIfaces]) => {
+            staticSystemInfo.cpuModel = (cpu.manufacturer + ' ' + cpu.brand).trim() || 'Nieznany CPU'
+            staticSystemInfo.osInfo = (osData.distro + ' ' + osData.release + ' (' + osData.arch + ')').trim() || 'Nieznany OS'
+            staticSystemInfo.gpuModel = graphics.controllers.map((g) => g.model).filter(Boolean).join(', ') || 'Zintegrowana'
+            
+            if (Array.isArray(netIfaces)) {
+              netIfaces.forEach((iface) => {
+                if (iface.iface) {
+                  networkIfaceNames[iface.iface] = iface.ifaceName || iface.iface
+                }
+              })
+            }
+          })
+          .catch((err) => {
+            console.error('Błąd pobierania specyfikacji sprzętowej:', err)
+          })
+
         resolve({ success: true })
       })
 

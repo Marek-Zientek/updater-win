@@ -43,11 +43,18 @@ const api = {
     ipcRenderer.invoke('get-setting', key, defaultValue),
   saveSetting: (key: string, value: string) => ipcRenderer.invoke('save-setting', key, value),
   getSystemDrivers: () => ipcRenderer.invoke('get-system-drivers'),
+  getDriverUpdates: () => ipcRenderer.invoke('get-driver-updates'),
+  upgradeDriver: (wingetId: string) => ipcRenderer.invoke('upgrade-driver', wingetId),
   getCleanupStats: () => ipcRenderer.invoke('get-cleanup-stats'),
   runCleanup: () => ipcRenderer.invoke('run-cleanup'),
   getStartupApps: () => ipcRenderer.invoke('get-startup-apps'),
   toggleStartupApp: (name: string, enabled: boolean) =>
     ipcRenderer.invoke('toggle-startup-app', name, enabled),
+  getSystemServices: () => ipcRenderer.invoke('get-system-services'),
+  toggleSystemService: (serviceName: string, action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled') =>
+    ipcRenderer.invoke('toggle-system-service', serviceName, action),
+  scanDiskSpace: () => ipcRenderer.invoke('scan-disk-space'),
+  deleteFileDiagnostics: (filePath: string) => ipcRenderer.invoke('delete-file-diagnostics', filePath),
   checkDriverAssistants: () => ipcRenderer.invoke('check-driver-assistants'),
   launchDriverAssistant: (wingetId: string) =>
     ipcRenderer.invoke('launch-driver-assistant', wingetId),
@@ -63,12 +70,18 @@ const api = {
     ipcRenderer.invoke('scan-leftovers', packageName),
   cleanLeftovers: (files: string[], registry: string[]) =>
     ipcRenderer.invoke('clean-leftovers', files, registry),
-  pingDnsServers: () => ipcRenderer.invoke('ping-dns-servers'),
+   pingDnsServers: () => ipcRenderer.invoke('ping-dns-servers'),
   getDnsConfig: () => ipcRenderer.invoke('get-dns-config'),
   setDnsServers: (interfaceIndex: number, primary: string, secondary: string) =>
     ipcRenderer.invoke('set-dns-servers', interfaceIndex, primary, secondary),
   resetDnsServers: (interfaceIndex: number) =>
     ipcRenderer.invoke('reset-dns-servers', interfaceIndex),
+  getDnsDohStatus: () => ipcRenderer.invoke('get-dns-doh-status'),
+  toggleDnsDoh: (interfaceGuid: string, dnsIps: string[], enable: boolean) =>
+    ipcRenderer.invoke('toggle-dns-doh', interfaceGuid, dnsIps, enable),
+  getNetworkHardening: () => ipcRenderer.invoke('get-network-hardening'),
+  toggleNetworkHardening: (key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) =>
+    ipcRenderer.invoke('toggle-network-hardening', key, enabled),
   runNetworkRepair: (repairType: 'flush' | 'winsock') =>
     ipcRenderer.invoke('run-network-repair', repairType),
   getNetworkDetails: (interfaceIndex: number) =>
@@ -90,19 +103,39 @@ const api = {
   getPrivacySettings: () => ipcRenderer.invoke('get-privacy-settings'),
   togglePrivacySetting: (key: string, enabled: boolean) =>
     ipcRenderer.invoke('toggle-privacy-setting', key, enabled),
+  getHardeningSettings: () => ipcRenderer.invoke('get-hardening-settings'),
+  toggleHardeningSetting: (key: string, enabled: boolean) =>
+    ipcRenderer.invoke('toggle-hardening-setting', key, enabled),
   getGameBoosterStatus: () => ipcRenderer.invoke('get-game-booster-status'),
   toggleGameBooster: (enable: boolean) => ipcRenderer.invoke('toggle-game-booster', enable),
   getMonitoredGames: () => ipcRenderer.invoke('get-monitored-games'),
   addCustomGame: (game: { name: string; exe: string }) => ipcRenderer.invoke('add-custom-game', game),
   deleteCustomGame: (exe: string) => ipcRenderer.invoke('delete-custom-game', exe),
   runHardwareBenchmark: () => ipcRenderer.invoke('run-hardware-benchmark'),
+  getGlobalBenchmarkRankings: (cpuModel: string, userScore: number) =>
+    ipcRenderer.invoke('get-global-benchmark-rankings', cpuModel, userScore),
+  uninstallApp: (wingetId: string) =>
+    ipcRenderer.invoke('uninstall-app', wingetId),
+  runElevatedUninstall: (wingetId: string) =>
+    ipcRenderer.invoke('run-elevated-uninstall', wingetId),
+  scanWin32Leftovers: (appName: string, publisher: string) =>
+    ipcRenderer.invoke('scan-win32-leftovers', appName, publisher),
+  cleanWin32Leftovers: (files: string[], registry: string[]) =>
+    ipcRenderer.invoke('clean-win32-leftovers', files, registry),
   auth: {
     register: (data: any) => ipcRenderer.invoke('auth-register', data),
     login: (data: any) => ipcRenderer.invoke('auth-login', data),
     logout: (token: string) => ipcRenderer.invoke('auth-logout', token),
-    verifySession: (token: string) => ipcRenderer.invoke('auth-verify-session', token)
+    verifySession: (token: string) => ipcRenderer.invoke('auth-verify-session', token),
+    exportUserProfile: (userId?: string) => ipcRenderer.invoke('export-user-profile', userId),
+    importUserProfile: (profileJson: string) => ipcRenderer.invoke('import-user-profile', profileJson),
+    syncProfileToCloud: (token: string) => ipcRenderer.invoke('sync-profile-to-cloud', token),
+    syncProfileFromCloud: (token: string) => ipcRenderer.invoke('sync-profile-from-cloud', token),
+    submitSystemTelemetry: (token: string, data: any) => ipcRenderer.invoke('submit-system-telemetry', token, data)
   },
-  getHardwareInfo: () => ipcRenderer.invoke('get-static-hardware')
+  getHardwareInfo: () => ipcRenderer.invoke('get-static-hardware'),
+  getHardwareSpecsheet: (type: 'cpu' | 'gpu' | 'ram' | 'network', modelName: string) =>
+    ipcRenderer.invoke('get-hardware-specsheet', type, modelName)
 }
 
 if (process.contextIsolated) {

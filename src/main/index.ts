@@ -22,7 +22,7 @@ import { setupCustomizationsIPC } from './ipc/customizations'
 import { setupStoreIPC } from './ipc/store'
 import { setupSettingsIPC, getSettingInternal, saveSettingInternal } from './ipc/settings'
 import { setupDriversIPC } from './ipc/drivers'
-import { setupOptimizerIPC } from './ipc/optimizer'
+import { setupOptimizerIPC, runCleanupInternal } from './ipc/optimizer'
 import { setupBackupIPC } from './ipc/backup'
 import { setupBloatwareIPC } from './ipc/bloatware'
 import { setupNetworkIPC } from './ipc/network'
@@ -94,7 +94,10 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
+    const isHidden = process.argv.includes('--hidden') || process.argv.includes('--minimized')
+    if (!isHidden) {
+      mainWindow?.show()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -233,6 +236,48 @@ async function runAutoCheckScheduler(): Promise<void> {
   }
 }
 
+async function runBackgroundCleanerScheduler(): Promise<void> {
+  const autoCleanEnabled = await getSettingInternal('auto_clean_enabled', 'false')
+  if (autoCleanEnabled !== 'true') {
+    console.log('[AutoClean] Background automated cleaner is disabled.')
+    return
+  }
+
+  const interval = await getSettingInternal('auto_clean_interval', 'weekly')
+  let intervalMs = 7 * 24 * 60 * 60 * 1000 // default weekly
+  if (interval === 'daily') {
+    intervalMs = 24 * 60 * 60 * 1000
+  } else if (interval === 'monthly') {
+    intervalMs = 30 * 24 * 60 * 60 * 1000
+  }
+
+  const lastCleanedStr = await getSettingInternal('last_cleaned_at', '0')
+  const lastCleaned = parseInt(lastCleanedStr, 10)
+  const now = Date.now()
+
+  if (now - lastCleaned >= intervalMs) {
+    console.log('[AutoClean] Running background cleanup...')
+    await saveSettingInternal('last_cleaned_at', now.toString())
+    try {
+      const res = await runCleanupInternal()
+      const notificationsEnabled = await getSettingInternal('notifications_enabled', 'true')
+      if (res.success && notificationsEnabled === 'true') {
+        const cleanedGb = (res.cleanedBytes / (1024 * 1024 * 1024)).toFixed(2)
+        new Notification({
+          title: 'Automatyczne czyszczenie',
+          body: `Zakończono czyszczenie systemu w tle. Odzyskano ${cleanedGb} GB miejsca.`,
+          icon: icon
+        }).show()
+      }
+    } catch (err) {
+      console.error('[AutoClean] Error during background cleaner:', err)
+    }
+  } else {
+    const timeRemainingHours = Math.round((intervalMs - (now - lastCleaned)) / (60 * 60 * 1000))
+    console.log(`[AutoClean] Next background cleanup in ${timeRemainingHours} hours.`)
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -295,6 +340,10 @@ app.whenReady().then(async () => {
   // Inicjalizacja harmonogramu automatycznych aktualizacji (co 15 minut)
   setTimeout(runAutoUpdateScheduledTask, 10000)
   setInterval(runAutoUpdateScheduledTask, 15 * 60 * 1000)
+
+  // Inicjalizacja harmonogramu czyszczenia w tle (co 15 minut)
+  setTimeout(runBackgroundCleanerScheduler, 15000)
+  setInterval(runBackgroundCleanerScheduler, 15 * 60 * 1000)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

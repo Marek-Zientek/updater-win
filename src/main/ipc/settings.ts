@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import { prisma } from '../db'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -87,6 +87,17 @@ export function setupSettingsIPC(): void {
   // Uruchom synchronizację na starcie
   syncTaskScheduler().catch(err => console.error('[Task Scheduler] Initial sync failed:', err))
 
+  // Zsynchronizuj autostart przy uruchomieniu aplikacji
+  getSettingInternal('open_at_login', 'false')
+    .then((openAtLogin) => {
+      app.setLoginItemSettings({
+        openAtLogin: openAtLogin === 'true',
+        path: process.execPath,
+        args: ['--hidden']
+      })
+    })
+    .catch((err) => console.error('[Autostart] Sync failed:', err))
+
   // Pobierz ustawienie
   ipcMain.handle('get-setting', async (_, key: string, defaultValue?: string) => {
     try {
@@ -111,6 +122,14 @@ export function setupSettingsIPC(): void {
       ]
       if (schedulerKeys.includes(key)) {
         await syncTaskScheduler()
+      }
+
+      if (key === 'open_at_login') {
+        app.setLoginItemSettings({
+          openAtLogin: value === 'true',
+          path: process.execPath,
+          args: ['--hidden']
+        })
       }
       
       return { success: true }

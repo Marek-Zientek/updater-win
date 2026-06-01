@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Activity, HardDrive, Cpu, Package } from 'lucide-react'
+import { Activity, HardDrive, Cpu, Package, Thermometer } from 'lucide-react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from 'recharts'
 
@@ -21,10 +21,21 @@ export function Dashboard() {
   const [processes, setProcesses] = useState<any[]>([])
   const [appHistory, setAppHistory] = useState<any[]>([])
   const [uniqueApps, setUniqueApps] = useState<string[]>([])
+  const [thermalMonitorEnabled, setThermalMonitorEnabled] = useState(true)
+  const [thermalThresholdTemp, setThermalThresholdTemp] = useState('85')
+  const [dynamicInfo, setDynamicInfo] = useState<any>(null)
 
   useEffect(() => {
     // 1. Dane statyczne - RAZ
     window.api.getStaticHardware()
+
+    // Pobierz ustawienia ochrony termicznej
+    window.api.getSetting('thermal_monitor_enabled', 'true').then((res) => {
+      setThermalMonitorEnabled(res.value === 'true')
+    })
+    window.api.getSetting('thermal_threshold_temp', '85').then((res) => {
+      setThermalThresholdTemp(res.value || '85')
+    })
 
     // 2. Aplikacje i Historia - co 30 sekund (bardzo rzadko)
     const fetchSoftware = () => {
@@ -67,7 +78,11 @@ export function Dashboard() {
 
     // 3. Dane dynamiczne (wykresy) - co 3 sekundy
     const fetchDynamic = () => {
-      window.api.getDynamicHardware()
+      window.api.getDynamicHardware().then((res) => {
+        if (res.success && res.data) {
+          setDynamicInfo(res.data)
+        }
+      })
       window.api.getResourceHistory().then((res) => {
         if (res.success) setResourceHistory(res.data)
       })
@@ -95,6 +110,27 @@ export function Dashboard() {
     resourceHistory.length > 0 ? resourceHistory[resourceHistory.length - 1].ram : '--'
   const currentCpu =
     resourceHistory.length > 0 ? resourceHistory[resourceHistory.length - 1].cpu : '--'
+
+  const currentTemp = (() => {
+    if (!dynamicInfo) return '--'
+    const cpuTemp = dynamicInfo.cpu?.temp || dynamicInfo.cpu?.maxTemp || 0
+    let maxGpuTemp = 0
+    if (dynamicInfo.gpu && Array.isArray(dynamicInfo.gpu)) {
+      dynamicInfo.gpu.forEach((g: any) => {
+        if (typeof g.temp === 'number' && g.temp > maxGpuTemp) {
+          maxGpuTemp = g.temp
+        }
+      })
+    }
+    const highest = Math.max(cpuTemp, maxGpuTemp)
+    return highest > 0 ? highest : '--'
+  })()
+
+  const handleToggleThermalMonitor = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked
+    setThermalMonitorEnabled(checked)
+    await window.api.saveSetting('thermal_monitor_enabled', checked.toString())
+  }
 
   return (
     <div className="dashboard-container">
@@ -171,6 +207,35 @@ export function Dashboard() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Temperatura i Ochrona */}
+        <div className="dashboard-card clickable" onClick={() => navigate('/hardware')}>
+          <div className="flex justify-between mb-sm">
+            <h3 className="card-title">Temperatura & Ochrona</h3>
+            <Thermometer size={20} color={typeof currentTemp === 'number' && currentTemp > 80 ? 'var(--color-error)' : 'var(--color-warning)'} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="stat-value">{currentTemp !== '--' ? `${currentTemp}°C` : '--'}</p>
+              <p className="text-muted text-xs">
+                Ochrona: {thermalMonitorEnabled ? `Aktywna (${thermalThresholdTemp}°C)` : 'Nieaktywna'}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-xs" onClick={(e) => e.stopPropagation()}>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={thermalMonitorEnabled}
+                  onChange={handleToggleThermalMonitor}
+                />
+                <span className="slider"></span>
+              </label>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                Zabezpieczenie
+              </span>
             </div>
           </div>
         </div>

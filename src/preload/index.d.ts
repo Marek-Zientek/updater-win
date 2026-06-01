@@ -3,6 +3,11 @@ export interface IAuthAPI {
   login: (data: any) => Promise<any>
   logout: (token: string) => Promise<any>
   verifySession: (token: string) => Promise<any>
+  exportUserProfile: (userId?: string) => Promise<{ success: boolean; profileJson?: string; error?: string }>
+  importUserProfile: (profileJson: string) => Promise<{ success: boolean; error?: string }>
+  syncProfileToCloud: (token: string) => Promise<{ success: boolean; lastSyncedAt?: string; error?: string }>
+  syncProfileFromCloud: (token: string) => Promise<{ success: boolean; error?: string }>
+  submitSystemTelemetry: (token: string, data: any) => Promise<{ success: boolean; error?: string }>
 }
 
 export interface IHardwareAPI {
@@ -53,6 +58,8 @@ export interface IHardwareAPI {
   ) => Promise<{ success: boolean; value?: string; error?: string }>
   saveSetting: (key: string, value: string) => Promise<{ success: boolean; error?: string }>
   getSystemDrivers: () => Promise<{ success: boolean; data: any[]; error?: string }>
+  getDriverUpdates: () => Promise<{ success: boolean; data: any[]; error?: string }>
+  upgradeDriver: (wingetId: string) => Promise<{ success: boolean; error?: string }>
   getCleanupStats: () => Promise<{
     success: boolean
     data: { tempSize: number; logSize: number; cacheSize: number }
@@ -64,6 +71,13 @@ export interface IHardwareAPI {
     name: string,
     enabled: boolean
   ) => Promise<{ success: boolean; error?: string }>
+  getSystemServices: () => Promise<{ success: boolean; data: any[]; error?: string }>
+  toggleSystemService: (
+    serviceName: string,
+    action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled'
+  ) => Promise<{ success: boolean; elevated?: boolean; error?: string }>
+  scanDiskSpace: () => Promise<{ success: boolean; data: any; error?: string }>
+  deleteFileDiagnostics: (filePath: string) => Promise<{ success: boolean; error?: string }>
   checkDriverAssistants: () => Promise<{ success: boolean; data: any[]; error?: string }>
   launchDriverAssistant: (wingetId: string) => Promise<{ success: boolean; error?: string }>
   getRestorePoints: () => Promise<{ success: boolean; data: any[]; error?: string }>
@@ -83,6 +97,10 @@ export interface IHardwareAPI {
     secondary: string
   ) => Promise<{ success: boolean; error?: string }>
   resetDnsServers: (interfaceIndex: number) => Promise<{ success: boolean; error?: string }>
+  getDnsDohStatus: () => Promise<{ success: boolean; data: any[]; error?: string }>
+  toggleDnsDoh: (interfaceGuid: string, dnsIps: string[], enable: boolean) => Promise<{ success: boolean; error?: string }>
+  getNetworkHardening: () => Promise<{ success: boolean; data: { llmnrDisabled: boolean; netbiosDisabled: boolean }; error?: string }>
+  toggleNetworkHardening: (key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) => Promise<{ success: boolean; error?: string }>
   runNetworkRepair: (
     repairType: 'flush' | 'winsock'
   ) => Promise<{ success: boolean; output?: string; error?: string }>
@@ -104,12 +122,23 @@ export interface IHardwareAPI {
     key: string,
     enabled: boolean
   ) => Promise<{ success: boolean; elevated?: boolean; error?: string }>
+  getHardeningSettings: () => Promise<{ success: boolean; data?: any; error?: string }>
+  toggleHardeningSetting: (
+    key: string,
+    enabled: boolean
+  ) => Promise<{ success: boolean; error?: string }>
   getGameBoosterStatus: () => Promise<{ success: boolean; active: boolean; error?: string }>
   toggleGameBooster: (enable: boolean) => Promise<{ success: boolean; active: boolean; error?: string }>
   getMonitoredGames: () => Promise<{ success: boolean; data: any[]; error?: string }>
   addCustomGame: (game: { name: string; exe: string }) => Promise<{ success: boolean; error?: string }>
   deleteCustomGame: (exe: string) => Promise<{ success: boolean; error?: string }>
   runHardwareBenchmark: () => Promise<{ success: boolean; data?: any; error?: string }>
+  getGlobalBenchmarkRankings: (cpuModel: string, userScore: number) => Promise<{ success: boolean; data?: any; error?: string }>
+  uninstallApp: (wingetId: string) => Promise<{ success: boolean; data?: string; requiresElevation?: boolean; error?: string }>
+  runElevatedUninstall: (wingetId: string) => Promise<{ success: boolean; message?: string; error?: string }>
+  scanWin32Leftovers: (appName: string, publisher: string) => Promise<{ success: boolean; files: string[]; registry: string[]; error?: string }>
+  cleanWin32Leftovers: (files: string[], registry: string[]) => Promise<{ success: boolean; filesDeleted: number; regsDeleted: number; errors: string[] }>
+  getHardwareSpecsheet: (type: 'cpu' | 'gpu' | 'ram' | 'network', modelName: string) => Promise<{ success: boolean; data?: any; error?: string }>
   auth: IAuthAPI
 }
 

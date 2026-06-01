@@ -483,6 +483,52 @@ export function startGameScanner(): void {
   }, 5000)
 }
 
+export async function runCleanupInternal(): Promise<{ success: boolean; cleanedBytes: number; error?: string }> {
+  try {
+    const userTemp = process.env.TEMP || ''
+    const systemTemp = 'C:\\Windows\\Temp'
+    const prefetch = 'C:\\Windows\\Prefetch'
+    const updateCache = 'C:\\Windows\\SoftwareDistribution\\Download'
+    const browserCachePaths = getBrowserCachePaths()
+
+    let cleanedBytes = 0
+
+    // Czyść po kolei i sumuj bajty
+    if (userTemp) {
+      cleanedBytes += await cleanDirectory(userTemp)
+    }
+    cleanedBytes += await cleanDirectory(systemTemp)
+
+    for (const p of browserCachePaths) {
+      cleanedBytes += await cleanDirectory(p)
+    }
+
+    // Czyść Windows Update Download Cache (bez UAC jeśli się uda)
+    cleanedBytes += await cleanDirectory(updateCache)
+
+    // Czyść Prefetch i głębokie pozostałości (wymaga UAC)
+    try {
+      const pSize = await getDirectorySize(prefetch)
+      const uSize = await getDirectorySize(updateCache)
+
+      const cleanCommand = `
+        Remove-Item -Path '${prefetch}\\*' -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path '${updateCache}\\*' -Recurse -Force -ErrorAction SilentlyContinue
+      `
+      const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${cleanCommand.replace(/\n/g, '; ')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+      
+      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`)
+      cleanedBytes += (pSize + uSize)
+    } catch (err) {
+      console.error('[Cleaner] Elevated clean failed or canceled:', err)
+    }
+
+    return { success: true, cleanedBytes }
+  } catch (error: any) {
+    return { success: false, cleanedBytes: 0, error: error.message }
+  }
+}
+
 export function setupOptimizerIPC(): void {
   // 1. Pobieranie statystyk czyszczenia dysku
   ipcMain.handle('get-cleanup-stats', async () => {
@@ -526,49 +572,7 @@ export function setupOptimizerIPC(): void {
 
   // 2. Wykonywanie czyszczenia dysku
   ipcMain.handle('run-cleanup', async () => {
-    try {
-      const userTemp = process.env.TEMP || ''
-      const systemTemp = 'C:\\Windows\\Temp'
-      const prefetch = 'C:\\Windows\\Prefetch'
-      const updateCache = 'C:\\Windows\\SoftwareDistribution\\Download'
-      const browserCachePaths = getBrowserCachePaths()
-
-      let cleanedBytes = 0
-
-      // Czyść po kolei i sumuj bajty
-      if (userTemp) {
-        cleanedBytes += await cleanDirectory(userTemp)
-      }
-      cleanedBytes += await cleanDirectory(systemTemp)
-
-      for (const p of browserCachePaths) {
-        cleanedBytes += await cleanDirectory(p)
-      }
-
-      // Czyść Windows Update Download Cache (bez UAC jeśli się uda)
-      cleanedBytes += await cleanDirectory(updateCache)
-
-      // Czyść Prefetch i głębokie pozostałości (wymaga UAC)
-      try {
-        const pSize = await getDirectorySize(prefetch)
-        const uSize = await getDirectorySize(updateCache)
-
-        const cleanCommand = `
-          Remove-Item -Path '${prefetch}\\*' -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path '${updateCache}\\*' -Recurse -Force -ErrorAction SilentlyContinue
-        `
-        const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${cleanCommand.replace(/\n/g, '; ')}"' -Verb RunAs -WindowStyle Hidden -Wait`
-        
-        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`)
-        cleanedBytes += (pSize + uSize)
-      } catch (err) {
-        console.error('[Cleaner] Elevated clean failed or canceled:', err)
-      }
-
-      return { success: true, cleanedBytes }
-    } catch (error: any) {
-      return { success: false, error: error.message }
-    }
+    return await runCleanupInternal()
   })
 
   // 3. Pobieranie programów z autostartu (HKCU Run)
@@ -873,7 +877,334 @@ export function setupOptimizerIPC(): void {
     }
   })
 
+  // 12. Pobieranie usług systemowych
+  ipcMain.handle('get-system-services', async () => {
+    const curatedServices: Record<string, { category: 'telemetry' | 'performance' | 'gaming' | 'security' | 'other', safety: 'safe' | 'caution' | 'critical', recommended: 'disable' | 'manual' | 'enable' }> = {
+      'DiagTrack': { category: 'telemetry', safety: 'safe', recommended: 'disable' },
+      'dmwappushservice': { category: 'telemetry', safety: 'safe', recommended: 'disable' },
+      'diagnosticshub.standardcollector.service': { category: 'telemetry', safety: 'safe', recommended: 'disable' },
+      'WerSvc': { category: 'telemetry', safety: 'safe', recommended: 'manual' },
+      'PcaSvc': { category: 'gaming', safety: 'caution', recommended: 'manual' },
+      'SysMain': { category: 'performance', safety: 'caution', recommended: 'manual' },
+      'Spooler': { category: 'performance', safety: 'safe', recommended: 'manual' },
+      'WbioSrvc': { category: 'security', safety: 'safe', recommended: 'manual' },
+      'TabletInputService': { category: 'performance', safety: 'safe', recommended: 'manual' },
+      'bthserv': { category: 'other', safety: 'safe', recommended: 'manual' },
+      'XblAuthManager': { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      'XblGameSave': { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      'XboxNetApiSvc': { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      'XboxGipSvc': { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      'MapsBroker': { category: 'other', safety: 'safe', recommended: 'disable' },
+      'RemoteRegistry': { category: 'security', safety: 'safe', recommended: 'disable' }
+    }
+
+    const psCommand = `
+      Get-CimInstance -ClassName Win32_Service | 
+      Select-Object Name, DisplayName, State, StartMode, Description | 
+      ConvertTo-Json -Compress
+    `
+    try {
+      const { stdout } = await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/\n/g, ' ')}"`
+      )
+
+      if (!stdout || stdout.trim() === '') {
+        return { success: true, data: [] }
+      }
+
+      const services = JSON.parse(stdout.trim())
+      const list = Array.isArray(services) ? services : [services]
+
+      const formatted = list.map((s: any) => {
+        const name = s.Name
+        const meta = curatedServices[name] || curatedServices[name.toLowerCase()] || { category: 'other', safety: 'caution', recommended: 'manual' }
+        return {
+          name,
+          displayName: s.DisplayName,
+          status: s.State === 'Running' ? 'running' : 'stopped',
+          startupType: s.StartMode === 'Auto' ? 'automatic' : (s.StartMode === 'Disabled' ? 'disabled' : 'manual'),
+          description: s.Description || '',
+          category: meta.category,
+          safety: meta.safety,
+          recommended: meta.recommended,
+          isCurated: !!curatedServices[name]
+        }
+      })
+
+      return { success: true, data: formatted }
+    } catch (error: any) {
+      console.error('[Services IPC] Failed to fetch services, falling back to Get-Service...', error)
+      try {
+        const fallbackCmd = `Get-Service | Select-Object Name, DisplayName, Status, StartType | ConvertTo-Json -Compress`
+        const { stdout } = await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${fallbackCmd}"`)
+        const services = JSON.parse(stdout.trim())
+        const list = Array.isArray(services) ? services : [services]
+        const formatted = list.map((s: any) => {
+          const name = s.Name
+          const meta = curatedServices[name] || curatedServices[name.toLowerCase()] || { category: 'other', safety: 'caution', recommended: 'manual' }
+          return {
+            name,
+            displayName: s.DisplayName,
+            status: s.Status === 4 ? 'running' : 'stopped',
+            startupType: s.StartType === 2 ? 'automatic' : (s.StartType === 4 ? 'disabled' : 'manual'),
+            description: '',
+            category: meta.category,
+            safety: meta.safety,
+            recommended: meta.recommended,
+            isCurated: !!curatedServices[name]
+          }
+        })
+        return { success: true, data: formatted }
+      } catch (fallbackErr: any) {
+        return { success: false, error: fallbackErr.message }
+      }
+    }
+  })
+
+  // 13. Zmiana stanu / konfiguracji usługi systemowej
+  ipcMain.handle('toggle-system-service', async (_, serviceName: string, action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled') => {
+    if (!serviceName) return { success: false, error: 'Brak nazwy usługi.' }
+
+    let psCommand = ''
+    if (action === 'start') {
+      psCommand = `Start-Service -Name "${serviceName}"`
+    } else if (action === 'stop') {
+      psCommand = `Stop-Service -Name "${serviceName}" -Force`
+    } else {
+      const startupMap = {
+        automatic: 'Automatic',
+        manual: 'Manual',
+        disabled: 'Disabled'
+      }
+      psCommand = `Set-Service -Name "${serviceName}" -StartupType ${startupMap[action]}`
+    }
+
+    try {
+      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+      return { success: true }
+    } catch (err: any) {
+      console.log(`[Services IPC] Direct command failed for service ${serviceName}. Requesting UAC elevation...`)
+      try {
+        const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"' -Verb RunAs -WindowStyle Hidden -Wait`
+        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`)
+        return { success: true, elevated: true }
+      } catch (elevatedErr: any) {
+        return { success: false, error: elevatedErr.message }
+      }
+    }
+  })
+
+  // 14. Skanowanie przestrzeni dyskowej (Milestone 2)
+  ipcMain.handle('scan-disk-space', async () => {
+    try {
+      const userHome = os.homedir()
+      const scanDirs = [
+        path.join(userHome, 'Downloads'),
+        path.join(userHome, 'Documents'),
+        path.join(userHome, 'Desktop'),
+        path.join(userHome, 'Videos'),
+        path.join(userHome, 'Pictures'),
+        path.join(userHome, 'Music'),
+        process.env.TEMP || path.join(userHome, 'AppData', 'Local', 'Temp')
+      ].filter(fs.existsSync)
+
+      const largeFiles: ScannedFile[] = []
+      const filesMap = new Map<string, ScannedFile[]>()
+      const categorySizes: Record<string, number> = {
+        video: 0,
+        audio: 0,
+        document: 0,
+        system: 0,
+        other: 0
+      }
+
+      for (const d of scanDirs) {
+        await scanDirectoryRecursive(d, largeFiles, filesMap, categorySizes)
+      }
+
+      const duplicates: { key: string; files: ScannedFile[] }[] = []
+      for (const [key, files] of filesMap.entries()) {
+        if (files.length > 1) {
+          duplicates.push({ key, files })
+        }
+      }
+
+      largeFiles.sort((a, b) => b.size - a.size)
+
+      duplicates.sort((a, b) => {
+        const savingA = a.files[0].size * (a.files.length - 1)
+        const savingB = b.files[0].size * (b.files.length - 1)
+        return savingB - savingA
+      })
+
+      return {
+        success: true,
+        data: {
+          categorySizes,
+          largeFiles: largeFiles.slice(0, 30),
+          duplicates: duplicates.slice(0, 20)
+        }
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 15. Usuwanie wybranego pliku z analizatora
+  ipcMain.handle('delete-file-diagnostics', async (_, filePath: string) => {
+    if (!filePath) return { success: false, error: 'Brak ścieżki pliku.' }
+    try {
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath)
+        return { success: true }
+      }
+      return { success: false, error: 'Plik nie istnieje.' }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  // Hardening Settings - RDP, Admin$ shares, Printer Spooler, Defender Optimization
+  ipcMain.handle('get-hardening-settings', async () => {
+    const psScript = `
+      # 1. Sprawdź RDP
+      $rdpPath = "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server"
+      $rdpProp = Get-ItemProperty -Path $rdpPath -Name "fDenyTSConnections" -ErrorAction SilentlyContinue
+      $rdpDisabled = if ($rdpProp) { $rdpProp.fDenyTSConnections -eq 1 } else { $true }
+
+      # 2. Sprawdź Admin$
+      $lanmanPath = "HKLM:\\System\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+      $lanmanProp = Get-ItemProperty -Path $lanmanPath -Name "AutoShareWks" -ErrorAction SilentlyContinue
+      $adminSharesDisabled = if ($lanmanProp) { $lanmanProp.AutoShareWks -eq 0 } else { $false }
+
+      # 3. Sprawdź Printer Spooler
+      $spooler = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+      $spoolerDisabled = if ($spooler) { $spooler.StartType -eq 'Disabled' -and $spooler.Status -eq 'Stopped' } else { $true }
+
+      # 4. Sprawdź Defender PUA / Ochronę w chmurze
+      $pua = Get-MpPreference -ErrorAction SilentlyContinue
+      $defenderOptimized = if ($pua) { $pua.PUAProtection -eq 1 } else { $false }
+
+      [PSCustomObject]@{
+          rdpDisabled = $rdpDisabled
+          adminSharesDisabled = $adminSharesDisabled
+          spoolerDisabled = $spoolerDisabled
+          defenderOptimized = $defenderOptimized
+      } | ConvertTo-Json
+    `
+    try {
+      const { stdout } = await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/\n/g, ' ').replace(/"/g, '\\"')}"`
+      )
+      return { success: true, data: JSON.parse(stdout.trim()) }
+    } catch (err: any) {
+      console.error('[Hardening IPC] Failed to get settings:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('toggle-hardening-setting', async (_, key: string, enabled: boolean) => {
+    let script = ''
+    switch (key) {
+      case 'rdpDisabled':
+        const rdpVal = enabled ? 1 : 0
+        const rdpSvcAction = enabled ? "Stop-Service -Name TermService -Force" : "Start-Service -Name TermService"
+        script = `Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections' -Value ${rdpVal} -Force; ${rdpSvcAction}`
+        break
+      case 'adminSharesDisabled':
+        const shareVal = enabled ? 0 : 1
+        script = `Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Services\\LanmanServer\\Parameters' -Name 'AutoShareWks' -Value ${shareVal} -Force`
+        break
+      case 'spoolerDisabled':
+        const spoolerStartup = enabled ? 'Disabled' : 'Automatic'
+        const spoolerAction = enabled ? "Stop-Service -Name Spooler -Force" : "Start-Service -Name Spooler"
+        script = `Set-Service -Name Spooler -StartupType ${spoolerStartup}; ${spoolerAction}`
+        break
+      case 'defenderOptimized':
+        if (enabled) {
+          script = `Set-MpPreference -PUAProtection Enabled; Set-MpPreference -SubmitSamplesConsent 1; Set-MpPreference -ScanScheduleDay 0 -ScanScheduleTime 02:00:00`
+        } else {
+          script = `Set-MpPreference -PUAProtection Disabled; Set-MpPreference -SubmitSamplesConsent 0`
+        }
+        break
+      default:
+        return { success: false, error: 'Nieznana reguła bezpieczeństwa.' }
+    }
+
+    const elevatedCmd = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${script.replace(/"/g, '\\"')}"' -Verb RunAs -WindowStyle Hidden -Wait`
+    try {
+      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCmd}"`)
+      return { success: true }
+    } catch (err: any) {
+      console.error(`[Hardening IPC] Failed to toggle key ${key}:`, err)
+      return { success: false, error: err.message }
+    }
+  })
+
   // Uruchomienie skanera procesów gier w tle
   startGameScanner()
+}
+
+import * as os from 'os'
+
+interface ScannedFile {
+  path: string
+  name: string
+  size: number
+  ext: string
+}
+
+async function scanDirectoryRecursive(
+  dir: string,
+  largeFiles: ScannedFile[],
+  filesMap: Map<string, ScannedFile[]>,
+  categorySizes: Record<string, number>,
+  depth: number = 0
+): Promise<void> {
+  if (depth > 6) return
+  try {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (
+          entry.name.startsWith('.') ||
+          entry.name.toLowerCase() === 'appdata' ||
+          entry.name.toLowerCase() === 'node_modules'
+        )
+          continue
+        await scanDirectoryRecursive(fullPath, largeFiles, filesMap, categorySizes, depth + 1)
+      } else if (entry.isFile()) {
+        try {
+          const stats = await fs.promises.stat(fullPath)
+          const size = stats.size
+          const ext = path.extname(entry.name).toLowerCase()
+          const fileData = { path: fullPath, name: entry.name, size, ext }
+
+          let category = 'other'
+          if (['.mp4', '.mkv', '.avi', '.mov', '.wmv'].includes(ext)) category = 'video'
+          else if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(ext)) category = 'audio'
+          else if (['.pdf', '.docx', '.xlsx', '.pptx', '.txt', '.zip', '.rar', '.7z'].includes(ext)) category = 'document'
+          else if (['.exe', '.msi', '.dll', '.sys', '.iso'].includes(ext)) category = 'system'
+
+          categorySizes[category] = (categorySizes[category] || 0) + size
+
+          if (size > 50 * 1024 * 1024) {
+            largeFiles.push(fileData)
+          }
+
+          const dupKey = `${size}_${entry.name}`
+          if (!filesMap.has(dupKey)) {
+            filesMap.set(dupKey, [])
+          }
+          filesMap.get(dupKey)!.push(fileData)
+        } catch {
+          // Pomijaj zablokowane pliki
+        }
+      }
+    }
+  } catch {
+    // Pomijaj błędy braku dostępu
+  }
 }
 

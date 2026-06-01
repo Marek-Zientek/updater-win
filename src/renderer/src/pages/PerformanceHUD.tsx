@@ -28,6 +28,16 @@ export function PerformanceHUD() {
 
   const [fps, setFps] = useState<number>(60)
 
+  // HUD customization settings states
+  const [hudOpacity, setHudOpacity] = useState(0.72)
+  const [hudHuePrimary, setHudHuePrimary] = useState(180)
+  const [hudHueSecondary, setHudHueSecondary] = useState(280)
+  const [showCpu, setShowCpu] = useState(true)
+  const [showRam, setShowRam] = useState(true)
+  const [showGpu, setShowGpu] = useState(true)
+  const [showFps, setShowFps] = useState(true)
+  const [showPing, setShowPing] = useState(true)
+
   useEffect(() => {
     // Wymuszenie przezroczystości tła dla okna nakładki
     const originalBgColor = document.body.style.backgroundColor
@@ -55,18 +65,15 @@ export function PerformanceHUD() {
 
     animationFrameId = requestAnimationFrame(calculateFps)
 
-    // 1. Cykliczne pobieranie obciążenia CPU/RAM/GPU - co 1.5 sekundy
+    // Dynamiczne pobieranie obciążenia CPU/RAM/GPU
     const fetchDynamicMetrics = () => {
       window.api.getDynamicHardware().then((res) => {
         if (res.success && res.data) {
           const d = res.data
           const cpu = d.cpu || {}
           const mem = d.memory || {}
-
-          // Pobranie danych GPU (zazwyczaj pierwszy kontroler)
           const gpuObj = d.gpu && d.gpu[0] ? d.gpu[0] : {}
 
-          // Obliczanie pamięci RAM w GB
           const totalGb = Math.round((mem.total / (1024 * 1024 * 1024)) * 10) / 10
           const usedGb = Math.round((mem.used / (1024 * 1024 * 1024)) * 10) / 10
           const usagePercent = mem.total > 0 ? Math.round((mem.used / mem.total) * 100) : 0
@@ -86,11 +93,10 @@ export function PerformanceHUD() {
       })
     }
 
-    // 2. Cykliczne badanie opóźnień sieci (Ping) - co 6 sekund (rzadziej z uwagi na narzut CLI)
+    // Cykliczne badanie opóźnień sieci (Ping)
     const fetchNetworkPing = () => {
       window.api.pingDnsServers().then((res) => {
         if (res.success && res.data && res.data.length > 0) {
-          // Znajdź Cloudflare lub Google
           const cloudflare = res.data.find((d: any) => d.name === 'Cloudflare')
           const google = res.data.find((d: any) => d.name === 'Google')
           const pingVal = cloudflare ? cloudflare.ping : google ? google.ping : res.data[0].ping
@@ -103,15 +109,30 @@ export function PerformanceHUD() {
       })
     }
 
+    // Wczytywanie ustawień HUD
+    const fetchSettings = () => {
+      window.api.getSetting('hud_opacity', '0.72').then((res) => setHudOpacity(parseFloat(res.value || '0.72')))
+      window.api.getSetting('hud_hue_primary', '180').then((res) => setHudHuePrimary(parseInt(res.value || '180', 10)))
+      window.api.getSetting('hud_hue_secondary', '280').then((res) => setHudHueSecondary(parseInt(res.value || '280', 10)))
+      window.api.getSetting('hud_sensor_cpu', 'true').then((res) => setShowCpu(res.value === 'true'))
+      window.api.getSetting('hud_sensor_ram', 'true').then((res) => setShowRam(res.value === 'true'))
+      window.api.getSetting('hud_sensor_gpu', 'true').then((res) => setShowGpu(res.value === 'true'))
+      window.api.getSetting('hud_sensor_fps', 'true').then((res) => setShowFps(res.value === 'true'))
+      window.api.getSetting('hud_sensor_ping', 'true').then((res) => setShowPing(res.value === 'true'))
+    }
+
     fetchDynamicMetrics()
     fetchNetworkPing()
+    fetchSettings()
 
     const metricInterval = setInterval(fetchDynamicMetrics, 1500)
     const pingInterval = setInterval(fetchNetworkPing, 6000)
+    const settingsInterval = setInterval(fetchSettings, 3000)
 
     return () => {
       clearInterval(metricInterval)
       clearInterval(pingInterval)
+      clearInterval(settingsInterval)
       cancelAnimationFrame(animationFrameId)
       document.body.style.backgroundColor = originalBgColor
       document.body.style.backgroundImage = originalBgImage
@@ -120,7 +141,15 @@ export function PerformanceHUD() {
   }, [])
 
   return (
-    <div className="hud-overlay-container">
+    <div
+      className="hud-overlay-container"
+      style={{
+        background: `rgba(11, 12, 16, ${hudOpacity})`,
+        border: '1.5px solid rgba(255, 255, 255, 0.08)',
+        '--color-primary': `hsl(${hudHuePrimary}, 100%, 60%)`,
+        '--color-secondary': `hsl(${hudHueSecondary}, 100%, 65%)`
+      } as any}
+    >
       <header className="hud-header">
         <Activity size={14} className="pulse-icon" />
         <span>UpdaterWin HUD</span>
@@ -128,83 +157,92 @@ export function PerformanceHUD() {
 
       <div className="hud-rows-list">
         {/* Wskaźnik CPU */}
-        <div className="hud-metric-row">
-          <div className="flex items-center gap-xs text-primary">
-            <Cpu size={14} />
-            <span className="metric-label">CPU:</span>
+        {showCpu && (
+          <div className="hud-metric-row">
+            <div className="flex items-center gap-xs text-primary">
+              <Cpu size={14} />
+              <span className="metric-label">CPU:</span>
+            </div>
+            <div className="metric-value-box">
+              <span className="font-extrabold text-white">{metrics.cpuLoad}%</span>
+              <span className="metric-sub">{metrics.cpuSpeed} GHz</span>
+              {metrics.cpuTemp > 0 && (
+                <span className="temp-badge text-warning">{metrics.cpuTemp}°C</span>
+              )}
+            </div>
           </div>
-          <div className="metric-value-box">
-            <span className="font-extrabold text-white">{metrics.cpuLoad}%</span>
-            <span className="metric-sub">{metrics.cpuSpeed} GHz</span>
-            {metrics.cpuTemp > 0 && (
-              <span className="temp-badge text-warning">{metrics.cpuTemp}°C</span>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Wskaźnik RAM */}
-        <div className="hud-metric-row">
-          <div className="flex items-center gap-xs text-secondary">
-            <HardDrive size={14} />
-            <span className="metric-label">RAM:</span>
+        {showRam && (
+          <div className="hud-metric-row">
+            <div className="flex items-center gap-xs text-secondary">
+              <HardDrive size={14} />
+              <span className="metric-label">RAM:</span>
+            </div>
+            <div className="metric-value-box">
+              <span className="font-extrabold text-white">{metrics.ramUsage}%</span>
+              <span className="metric-sub">
+                {metrics.ramUsedGb}/{metrics.ramTotalGb} GB
+              </span>
+            </div>
           </div>
-          <div className="metric-value-box">
-            <span className="font-extrabold text-white">{metrics.ramUsage}%</span>
-            <span className="metric-sub">
-              {metrics.ramUsedGb}/{metrics.ramTotalGb} GB
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Wskaźnik GPU */}
-        <div className="hud-metric-row">
-          <div className="flex items-center gap-xs text-warning">
-            <Zap size={14} />
-            <span className="metric-label">GPU:</span>
+        {showGpu && (
+          <div className="hud-metric-row">
+            <div className="flex items-center gap-xs text-warning">
+              <Zap size={14} />
+              <span className="metric-label">GPU:</span>
+            </div>
+            <div className="metric-value-box">
+              <span className="font-extrabold text-white">{metrics.gpuLoad}%</span>
+              {metrics.gpuTemp > 0 && (
+                <span className="temp-badge text-warning">{metrics.gpuTemp}°C</span>
+              )}
+            </div>
           </div>
-          <div className="metric-value-box">
-            <span className="font-extrabold text-white">{metrics.gpuLoad}%</span>
-            {metrics.gpuTemp > 0 && (
-              <span className="temp-badge text-warning">{metrics.gpuTemp}°C</span>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Wskaźnik FPS */}
-        <div className="hud-metric-row">
-          <div className="flex items-center gap-xs text-info">
-            <Monitor size={14} />
-            <span className="metric-label">FPS:</span>
+        {showFps && (
+          <div className="hud-metric-row">
+            <div className="flex items-center gap-xs text-info">
+              <Monitor size={14} />
+              <span className="metric-label">FPS:</span>
+            </div>
+            <div className="metric-value-box">
+              <span className="font-extrabold text-white">{fps} FPS</span>
+            </div>
           </div>
-          <div className="metric-value-box">
-            <span className="font-extrabold text-white">{fps} FPS</span>
-          </div>
-        </div>
+        )}
 
         {/* Wskaźnik PING */}
-        <div className="hud-metric-row">
-          <div className="flex items-center gap-xs text-success">
-            <Activity size={14} />
-            <span className="metric-label">PING:</span>
+        {showPing && (
+          <div className="hud-metric-row">
+            <div className="flex items-center gap-xs text-success">
+              <Activity size={14} />
+              <span className="metric-label">PING:</span>
+            </div>
+            <div className="metric-value-box">
+              <span
+                className="font-extrabold text-white"
+                style={{ color: metrics.pingMs > 0 ? '#34d399' : 'var(--color-text-muted)' }}
+              >
+                {metrics.pingMs > 0 ? `${metrics.pingMs} ms` : 'Mierzenie...'}
+              </span>
+            </div>
           </div>
-          <div className="metric-value-box">
-            <span
-              className="font-extrabold text-white"
-              style={{ color: metrics.pingMs > 0 ? '#34d399' : 'var(--color-text-muted)' }}
-            >
-              {metrics.pingMs > 0 ? `${metrics.pingMs} ms` : 'Mierzenie...'}
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       <style>{`
         .hud-overlay-container {
           width: 250px;
-          height: 200px;
-          background: rgba(11, 12, 16, 0.72);
+          height: auto;
+          min-height: 50px;
           backdrop-filter: blur(12px) saturate(180%);
-          border: 1.5px solid rgba(255, 255, 255, 0.08);
           border-radius: 20px;
           padding: 14px 18px;
           box-sizing: border-box;

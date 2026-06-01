@@ -3,14 +3,52 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import * as fs from 'fs'
 import { knownAssistants } from '../data/knownDrivers'
+import { checkForUpdatesInternal, runWinget } from './winget'
 
 const execAsync = promisify(exec)
+
+// Map installed hardware to Winget Packages
+function mapHardwareToWinget(driver: any): string | null {
+  const name = (driver.DeviceName || '').toLowerCase()
+  const mfr = (driver.Manufacturer || '').toLowerCase()
+  const cls = (driver.DeviceClass || '').toLowerCase()
+
+  if (mfr.includes('nvidia')) {
+    if (cls === 'display') {
+      return 'Nvidia.GeForceDriver.Desktop'
+    }
+  }
+  if (mfr.includes('amd')) {
+    if (cls === 'display') {
+      return 'AMD.Adrenalin'
+    }
+  }
+  if (mfr.includes('intel')) {
+    if (cls === 'display') {
+      return 'Intel.GraphicsDriver'
+    }
+    if (name.includes('wi-fi') || name.includes('wireless') || name.includes('dual band') || name.includes('centrino') || cls === 'net') {
+      if (name.includes('bluetooth') || name.includes('bt')) {
+        return 'Intel.Bluetooth'
+      }
+      return 'Intel.WiFi'
+    }
+  }
+  if (mfr.includes('realtek')) {
+    if (name.includes('ethernet') || name.includes('pcie gbe') || name.includes('lan')) {
+      return 'Realtek.EthernetControllerDriver'
+    }
+    if (cls === 'media' || name.includes('audio') || name.includes('sound')) {
+      return 'Realtek.HighDefinitionAudioDriver'
+    }
+  }
+  return null
+}
 
 export function setupDriversIPC() {
   // 1. Wykrywanie sterowników systemowych przez PowerShell
   ipcMain.handle('get-system-drivers', async () => {
     try {
-      // Zapytanie PowerShell pobierające urządzenia klas: Display, Net, MEDIA i filtrujące Microsoft
       const psCommand = `Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceClass -in @('Display', 'Net', 'MEDIA') -and $_.Manufacturer -ne 'Microsoft' } | Select-Object DeviceName, DriverVersion, Manufacturer, DeviceClass, DeviceID | ConvertTo-Json -Compress`
       const command = `chcp 65001 > nul && powershell -NoProfile -NonInteractive -Command "${psCommand.replace(/"/g, '\\"')}"`
 
@@ -21,7 +59,6 @@ export function setupDriversIPC() {
       }
 
       const parsed = JSON.parse(stdout.trim())
-      // Zabezpieczenie na wypadek zwrócenia pojedynczego obiektu zamiast tablicy
       const data = Array.isArray(parsed) ? parsed : [parsed]
       return { success: true, data }
     } catch (err: any) {
@@ -30,7 +67,71 @@ export function setupDriversIPC() {
     }
   })
 
-  // 2. Sprawdzanie obecności asystentów aktualizacji sterowników
+  // 2. Pobieranie listy dostępnych aktualizacji sterowników przez Winget
+  ipcMain.handle('get-driver-updates', async () => {
+    try {
+      const psCommand = `Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceClass -in @('Display', 'Net', 'MEDIA') -and $_.Manufacturer -ne 'Microsoft' } | Select-Object DeviceName, DriverVersion, Manufacturer, DeviceClass, DeviceID | ConvertTo-Json -Compress`
+      const command = `chcp 65001 > nul && powershell -NoProfile -NonInteractive -Command "${psCommand.replace(/"/g, '\\"')}"`
+
+      const { stdout } = await execAsync(command, { maxBuffer: 1024 * 1024 * 4 })
+      if (!stdout || !stdout.trim()) {
+        return { success: true, data: [] }
+      }
+
+      const parsed = JSON.parse(stdout.trim())
+      const installedDrivers = Array.isArray(parsed) ? parsed : [parsed]
+
+      let wingetUpdates: any[] = []
+      try {
+        wingetUpdates = await checkForUpdatesInternal()
+      } catch (err) {
+        console.warn('[Drivers Updates] Failed to get updates from winget, using empty list:', err)
+      }
+
+      const updatesList: any[] = []
+
+      for (const driver of installedDrivers) {
+        const wingetId = mapHardwareToWinget(driver)
+        if (!wingetId) continue
+
+        const matchedUpgrade = wingetUpdates.find(
+          (u) => u.id?.toLowerCase() === wingetId.toLowerCase()
+        )
+        if (matchedUpgrade) {
+          updatesList.push({
+            deviceName: driver.DeviceName,
+            manufacturer: driver.Manufacturer,
+            deviceClass: driver.DeviceClass,
+            currentVersion: driver.DriverVersion || matchedUpgrade.version,
+            availableVersion: matchedUpgrade.available,
+            wingetId: wingetId,
+            status: 'update_available'
+          })
+        }
+      }
+
+      return { success: true, data: updatesList }
+    } catch (err: any) {
+      console.error('[Drivers Updates IPC] Failed to fetch updates:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  // 3. Wykonywanie cichej aktualizacji sterownika
+  ipcMain.handle('upgrade-driver', async (_, wingetId: string) => {
+    try {
+      console.log(`[Driver Upgrade] Upgrading driver: ${wingetId}...`)
+      const { stdout } = await runWinget(
+        `upgrade --id ${wingetId} --silent --accept-package-agreements --accept-source-agreements`
+      )
+      return { success: true, data: stdout }
+    } catch (err: any) {
+      console.error(`[Driver Upgrade] Failed to upgrade driver ${wingetId}:`, err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  // 4. Sprawdzanie obecności asystentów aktualizacji sterowników
   ipcMain.handle('check-driver-assistants', async () => {
     try {
       const data = knownAssistants.map((assistant) => {
@@ -53,7 +154,7 @@ export function setupDriversIPC() {
     }
   })
 
-  // 3. Uruchamianie asystenta aktualizacji sterowników
+  // 5. Uruchamianie asystenta aktualizacji sterowników
   ipcMain.handle('launch-driver-assistant', async (_, wingetId: string) => {
     const assistant = knownAssistants.find((a) => a.wingetId === wingetId)
     if (!assistant) {
@@ -61,13 +162,11 @@ export function setupDriversIPC() {
     }
 
     try {
-      // 1. Jeśli jest komenda startująca URL (np. dla Intela)
       if (assistant.launchCmd) {
         exec(assistant.launchCmd)
         return { success: true }
       }
 
-      // 2. Jeśli jest plik wykonywalny na dysku, uruchom go
       let execPath = ''
       for (const p of assistant.execPaths) {
         if (fs.existsSync(p)) {
@@ -80,7 +179,6 @@ export function setupDriversIPC() {
         return { success: false, error: 'Nie odnaleziono pliku wykonywalnego asystenta.' }
       }
 
-      // Uruchamiamy w tle bez blokowania procesu głównego
       const { spawn } = require('child_process')
       const child = spawn(execPath, [], {
         detached: true,

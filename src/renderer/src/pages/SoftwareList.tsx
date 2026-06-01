@@ -57,6 +57,19 @@ export function SoftwareList() {
     null
   )
 
+  // Uninstaller & Leftovers states
+  const [uninstallingId, setUninstallingId] = useState<string | null>(null)
+  const [showLeftoversModal, setShowLeftoversModal] = useState(false)
+  const [leftoversAppName, setLeftoversAppName] = useState('')
+  const [leftoversPublisher, setLeftoversPublisher] = useState('')
+  const [leftoversFiles, setLeftoversFiles] = useState<string[]>([])
+  const [leftoversRegs, setLeftoversRegs] = useState<string[]>([])
+  const [scanningLeftovers, setScanningLeftovers] = useState(false)
+  const [cleaningLeftovers, setCleaningLeftovers] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([])
+  const [selectedRegs, setSelectedRegs] = useState<string[]>([])
+  const [uacUninstallApp, setUacUninstallApp] = useState<{ name: string; wingetId: string } | null>(null)
+
   useEffect(() => {
     if (location.state && (location.state as any).tab) {
       setActiveTab((location.state as any).tab)
@@ -278,6 +291,99 @@ export function SoftwareList() {
         wingetId: wingetId,
         message: res.error || 'Nie udało się uruchomić asystenta sterowników.'
       })
+    }
+  }
+
+  const handleStartUninstall = async (app: any) => {
+    setUninstallingId(app.id)
+    setUacUninstallApp(null)
+    setError(null)
+
+    const res = await window.api.uninstallApp(app.id)
+    setUninstallingId(null)
+
+    if (res.success) {
+      const publisher = app.id.split('.')[0] || ''
+      setLeftoversAppName(app.name)
+      setLeftoversPublisher(publisher)
+      
+      setShowLeftoversModal(true)
+      setScanningLeftovers(true)
+      setSelectedFiles([])
+      setSelectedRegs([])
+      setLeftoversFiles([])
+      setLeftoversRegs([])
+
+      try {
+        const scanRes = await window.api.scanWin32Leftovers(app.name, publisher)
+        if (scanRes.success) {
+          setLeftoversFiles(scanRes.files)
+          setLeftoversRegs(scanRes.registry)
+          setSelectedFiles(scanRes.files)
+          setSelectedRegs(scanRes.registry)
+        }
+      } catch (err) {
+        console.error('Błąd skanowania pozostałości:', err)
+      } finally {
+        setScanningLeftovers(false)
+      }
+      
+      fetchData()
+    } else if (res.requiresElevation) {
+      setUacUninstallApp({ name: app.name, wingetId: app.id })
+    } else {
+      setError(res.error || `Błąd deinstalacji aplikacji ${app.name}`)
+    }
+  }
+
+  const handleElevatedUninstall = async () => {
+    if (!uacUninstallApp) return
+    setElevating(true)
+    await window.api.runElevatedUninstall(uacUninstallApp.wingetId)
+    setElevating(false)
+    
+    const appName = uacUninstallApp.name
+    const wingetId = uacUninstallApp.wingetId
+    setUacUninstallApp(null)
+    
+    const publisher = wingetId.split('.')[0] || ''
+    setLeftoversAppName(appName)
+    setLeftoversPublisher(publisher)
+    setShowLeftoversModal(true)
+    setScanningLeftovers(true)
+    setSelectedFiles([])
+    setSelectedRegs([])
+    setLeftoversFiles([])
+    setLeftoversRegs([])
+    
+    setTimeout(async () => {
+      try {
+        const scanRes = await window.api.scanWin32Leftovers(appName, publisher)
+        if (scanRes.success) {
+          setLeftoversFiles(scanRes.files)
+          setLeftoversRegs(scanRes.registry)
+          setSelectedFiles(scanRes.files)
+          setSelectedRegs(scanRes.registry)
+        }
+      } catch (err) {
+        console.error('Błąd skanowania pozostałości:', err)
+      } finally {
+        setScanningLeftovers(false)
+      }
+      fetchData()
+    }, 6000)
+  }
+
+  const handleCleanLeftovers = async () => {
+    setCleaningLeftovers(true)
+    try {
+      const cleanRes = await window.api.cleanWin32Leftovers(selectedFiles, selectedRegs)
+      setError(`Pomyślnie wyczyszczono pozostałości! Usunięto foldery: ${cleanRes.filesDeleted}, klucze rejestru: ${cleanRes.regsDeleted}`)
+      setShowLeftoversModal(false)
+    } catch (err: any) {
+      setError(err.message || 'Błąd czyszczenia pozostałości.')
+    } finally {
+      setCleaningLeftovers(false)
     }
   }
 
@@ -706,6 +812,156 @@ export function SoftwareList() {
         </div>
       )}
 
+      {uacUninstallApp && (
+        <div className="uac-modal animate-fade-in" style={{ borderColor: 'rgba(239, 68, 68, 0.25)', background: 'rgba(239, 68, 68, 0.04)' }}>
+          <div className="uac-modal-header" style={{ color: '#f87171' }}>
+            <div className="flex items-center gap-sm">
+              <ShieldAlert size={20} color="#f87171" />
+              <strong>Wymagane uprawnienia administratora do deinstalacji</strong>
+            </div>
+            <button className="upgrade-error-close" onClick={() => setUacUninstallApp(null)}>
+              <X size={16} />
+            </button>
+          </div>
+          <p className="uac-modal-app">📦 {uacUninstallApp.name}</p>
+          <p className="uac-modal-desc">
+            Deinstalator tego programu wymaga uprawnień administratora Windows (UAC). Kliknij poniższy
+            przycisk — system wyświetli <strong>jedno okno UAC</strong>, po jego zatwierdzeniu deinstalacja
+            uruchomi się w osobnym oknie.
+          </p>
+          <div className="uac-modal-footer" style={{ borderTopColor: 'rgba(239, 68, 68, 0.1)' }}>
+            <span className="upgrade-error-hint">
+              <RefreshCw size={12} style={{ display: 'inline', marginRight: '4px' }} />
+              Po zakończeniu deinstalacji nastąpi wyszukanie pozostałości.
+            </span>
+            <button
+              className="btn-uac-elevate"
+              style={{
+                color: '#fff',
+                background: 'rgba(239, 68, 68, 0.2)',
+                borderColor: 'rgba(239, 68, 68, 0.5)'
+              }}
+              disabled={elevating}
+              onClick={handleElevatedUninstall}
+            >
+              <ShieldAlert size={14} />
+              {elevating ? 'Otwieranie...' : 'Odinstaluj z UAC'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showLeftoversModal && (
+        <div className="uac-modal animate-fade-in" style={{ borderColor: 'rgba(69, 243, 255, 0.3)', background: 'rgba(4, 5, 7, 0.98)', position: 'fixed', top: '10%', left: '15%', right: '15%', zIndex: 1000, boxShadow: '0 20px 40px rgba(0,0,0,0.8)', maxHeight: '80%', overflowY: 'auto' }}>
+          <div className="uac-modal-header" style={{ color: 'var(--color-primary)' }}>
+            <div className="flex items-center gap-sm">
+              <RefreshCw size={20} className={scanningLeftovers ? 'spin' : ''} color="var(--color-primary)" />
+              <strong>Analizator Pozostałości (Leftovers Cleaner)</strong>
+            </div>
+            <button className="upgrade-error-close" onClick={() => setShowLeftoversModal(false)}>
+              <X size={16} />
+            </button>
+          </div>
+          
+          <div className="flex flex-col gap-sm" style={{ padding: '8px 0' }}>
+            <h3 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>Pozostałości po programie: <strong className="text-primary">{leftoversAppName}</strong> {leftoversPublisher && <span className="text-xs text-muted">({leftoversPublisher})</span>}</h3>
+            <p className="text-xs text-muted" style={{ margin: 0, lineHeight: 1.5 }}>
+              Wyszukaliśmy foldery na dysku oraz klucze rejestru Windows, które mogły pozostać po odinstalowaniu programu. Zaznacz elementy, które chcesz trwale usunąć.
+            </p>
+            
+            {scanningLeftovers ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-sm">
+                <div className="loader animate-spin rounded-full h-8 w-8 border-3 border-primary border-t-transparent" />
+                <span className="text-xs text-muted animate-pulse">Skanowanie rejestru i dysków systemowych...</span>
+              </div>
+            ) : (leftoversFiles.length === 0 && leftoversRegs.length === 0) ? (
+              <div className="text-center py-8">
+                <span className="text-xs text-success font-bold">✓ Brak wykrytych pozostałości! System jest czysty.</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-md" style={{ maxHeight: '350px', overflowY: 'auto', paddingRight: '6px' }}>
+                {/* Foldery */}
+                {leftoversFiles.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Wykryte foldery ({leftoversFiles.length}):</h4>
+                    <div className="flex flex-col gap-xs">
+                      {leftoversFiles.map((file, idx) => (
+                        <label key={idx} className="flex items-center gap-sm" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedFiles.includes(file)}
+                            onChange={() => {
+                              if (selectedFiles.includes(file)) {
+                                setSelectedFiles(prev => prev.filter(f => f !== file))
+                              } else {
+                                setSelectedFiles(prev => [...prev, file])
+                              }
+                            }}
+                          />
+                          <span className="font-mono text-white break-all">{file}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejestr */}
+                {leftoversRegs.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Klucze rejestru ({leftoversRegs.length}):</h4>
+                    <div className="flex flex-col gap-xs">
+                      {leftoversRegs.map((reg, idx) => (
+                        <label key={idx} className="flex items-center gap-sm" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedRegs.includes(reg)}
+                            onChange={() => {
+                              if (selectedRegs.includes(reg)) {
+                                setSelectedRegs(prev => prev.filter(r => r !== reg))
+                              } else {
+                                setSelectedRegs(prev => [...prev, reg])
+                              }
+                            }}
+                          />
+                          <span className="font-mono text-white break-all">{reg}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="uac-modal-footer" style={{ borderTopColor: 'rgba(69, 243, 255, 0.1)', marginTop: '8px' }}>
+            <span className="upgrade-error-hint">
+              ⚠️ Usunięcie wymaga jednorazowych uprawnień administratora (UAC).
+            </span>
+            <div className="flex gap-sm">
+              <button
+                className="btn-uac-elevate"
+                style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', borderColor: 'rgba(255,255,255,0.1)' }}
+                onClick={() => setShowLeftoversModal(false)}
+              >
+                Anuluj
+              </button>
+              <button
+                className="btn-uac-elevate"
+                style={{
+                  color: '#000',
+                  background: 'var(--color-primary)',
+                  borderColor: 'var(--color-primary)'
+                }}
+                disabled={cleaningLeftovers || scanningLeftovers || (selectedFiles.length === 0 && selectedRegs.length === 0)}
+                onClick={handleCleanLeftovers}
+              >
+                {cleaningLeftovers ? 'Czyszczenie...' : `Usuń zaznaczone (${selectedFiles.length + selectedRegs.length})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex flex-col items-center justify-center h-100 gap-md">
           <div className="loader" />
@@ -1008,6 +1264,21 @@ export function SoftwareList() {
                       >
                         Szczegóły
                       </button>
+                      {activeTab === 'installed' && (
+                        <button
+                          className="btn-action-primary"
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            color: '#f87171',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            boxShadow: 'none'
+                          }}
+                          disabled={uninstallingId === app.id}
+                          onClick={() => handleStartUninstall(app)}
+                        >
+                          {uninstallingId === app.id ? 'Usuwanie...' : 'Odinstaluj'}
+                        </button>
+                      )}
                       {activeTab === 'upgradable' && (
                         <button
                           className="btn-action-primary"

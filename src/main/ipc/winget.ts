@@ -1,6 +1,8 @@
 import { ipcMain, Notification } from 'electron'
 import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
+import * as fs from 'fs'
+import * as path from 'path'
 import { prisma } from '../db'
 import { knownApps } from '../data/knownApps'
 import { preflightDownloadCheck } from './download-guard'
@@ -695,6 +697,199 @@ export function setupWingetIPC() {
     } catch (error: any) {
       console.error('[Winget API Fetch Error]:', error)
       return { success: false, error: error.message }
+    }
+  })
+
+  // 13. Odinstalowywanie aplikacji (Winget)
+  ipcMain.handle('uninstall-app', async (_, wingetId: string) => {
+    if (!wingetId) return { success: false, error: 'Brak wingetId.' }
+    try {
+      console.log(`[Winget Uninstall] Próba cichego odinstalowania dla ${wingetId}...`)
+      const { stdout } = await runWinget(`uninstall --id ${wingetId} --silent --accept-source-agreements`)
+      return { success: true, data: cleanWingetOutput(stdout) }
+    } catch (uninstallError: any) {
+      const cleaned = cleanWingetOutput(uninstallError?.stderr || uninstallError?.stdout || '')
+      console.warn(`[Winget Uninstall] Ciche odinstalowanie nie powiodło się dla ${wingetId}:`, cleaned)
+
+      if (isUACError(uninstallError)) {
+        return {
+          success: false,
+          requiresElevation: true,
+          error: 'Odinstalowanie tej aplikacji wymaga uprawnień administratora (UAC).'
+        }
+      }
+      return {
+        success: false,
+        requiresElevation: false,
+        error: cleaned || uninstallError?.message || 'Nieznany błąd podczas deinstalacji.'
+      }
+    }
+  })
+
+  // 14. Odinstalowywanie aplikacji z podniesionymi uprawnieniami (UAC)
+  ipcMain.handle('run-elevated-uninstall', async (_, wingetId: string) => {
+    if (!wingetId) return { success: false, error: 'Brak wingetId.' }
+
+    const localAppData = process.env.LOCALAPPDATA || ''
+    const wingetExe = `${localAppData}\\Microsoft\\WindowsApps\\winget.exe`
+    const wingetArgs = `uninstall --id ${wingetId} --interactive --accept-source-agreements`
+    const psCommand = `Start-Process -FilePath cmd.exe -ArgumentList '/k "${wingetExe}" ${wingetArgs}' -Verb RunAs`
+
+    try {
+      const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        env: buildWingetEnv()
+      })
+      ps.unref()
+
+      console.log(`[Winget Elevated Uninstall] Launched elevated uninstall for ${wingetId}`)
+      return { success: true, message: 'Otwarto okno deinstalacji z uprawnieniami administratora.' }
+    } catch (err: any) {
+      console.error('[Winget Elevated Uninstall] Failed to launch elevated uninstall:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  // 15. Skanowanie pozostałości (pliki i rejestr Win32)
+  ipcMain.handle('scan-win32-leftovers', async (_, appName: string, publisher: string) => {
+    if (!appName) return { success: false, error: 'Brak nazwy aplikacji.' }
+
+    const detectedFiles: string[] = []
+    const detectedRegs: string[] = []
+
+    const cleanName = appName.replace(/v?\d+\.\d+(\.\d+)*/g, '').trim()
+    const terms = [cleanName]
+    if (publisher && publisher !== cleanName) {
+      terms.push(publisher)
+    }
+
+    const roots = [
+      process.env.APPDATA || '',
+      process.env.LOCALAPPDATA || '',
+      'C:\\Program Files',
+      'C:\\Program Files (x86)'
+    ].filter(Boolean)
+
+    for (const root of roots) {
+      try {
+        if (fs.existsSync(root)) {
+          const filesInRoot = await fs.promises.readdir(root)
+          for (const item of filesInRoot) {
+            const itemPath = path.join(root, item)
+            try {
+              const stat = await fs.promises.stat(itemPath)
+              if (stat.isDirectory()) {
+                const lowerItem = item.toLowerCase()
+                const matches = terms.some(t => {
+                  const cleanT = t.toLowerCase().trim()
+                  return cleanT.length > 2 && lowerItem.includes(cleanT)
+                })
+                if (matches) {
+                  detectedFiles.push(itemPath)
+                }
+              }
+            } catch (statErr) {
+              // Ignoruj zablokowane pliki
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[Leftovers Disk Scanner] Error scanning root ${root}:`, err)
+      }
+    }
+
+    const psScript = `
+      $paths = @("HKCU:\\Software", "HKLM:\\Software")
+      $results = @()
+      foreach ($path in $paths) {
+          if (Test-Path $path) {
+              Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Where-Object { 
+                  $name = $_.PSChildName.toLowerCase()
+                  ${terms.map(t => `$name -like '*${t.toLowerCase().trim()}*'`).join(' -or ')}
+              } | ForEach-Object { $_.Name }
+          }
+      }
+      $results | ConvertTo-Json
+    `
+    try {
+      const buffer = Buffer.from(psScript, 'utf16le')
+      const base64 = buffer.toString('base64')
+      const { stdout } = await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${base64}`
+      )
+      if (stdout && stdout.trim() !== '') {
+        const parsed = JSON.parse(stdout.trim())
+        const keys = Array.isArray(parsed) ? parsed : [parsed]
+        keys.forEach(k => {
+          if (typeof k === 'string') {
+            detectedRegs.push(k.replace('HKEY_CURRENT_USER', 'HKCU').replace('HKEY_LOCAL_MACHINE', 'HKLM'))
+          }
+        })
+      }
+    } catch (err) {
+      console.error('[Leftovers Registry Scanner] Error scanning registry:', err)
+    }
+
+    return {
+      success: true,
+      files: detectedFiles,
+      registry: detectedRegs
+    }
+  })
+
+  // 16. Usuwanie pozostałości Win32 (pliki i rejestr, wymaga UAC)
+  ipcMain.handle('clean-win32-leftovers', async (_, files: string[], registry: string[]) => {
+    let filesDeleted = 0
+    let regsDeleted = 0
+    const errors: string[] = []
+
+    const deleteScriptParts: string[] = []
+    for (const file of files) {
+      deleteScriptParts.push(`if (Test-Path '${file}') { Remove-Item -Path '${file}' -Recurse -Force }`)
+    }
+    for (const reg of registry) {
+      const formattedReg = reg
+        .replace('HKEY_CURRENT_USER', 'HKCU:')
+        .replace('HKEY_LOCAL_MACHINE', 'HKLM:')
+        .replace('HKCU', 'HKCU:')
+        .replace('HKLM', 'HKLM:')
+      deleteScriptParts.push(`if (Test-Path '${formattedReg}') { Remove-Item -Path '${formattedReg}' -Recurse -Force }`)
+    }
+
+    if (deleteScriptParts.length === 0) {
+      return { success: true, filesDeleted, regsDeleted, errors }
+    }
+
+    const fullScript = deleteScriptParts.join('\n')
+    const innerBase64 = Buffer.from(fullScript, 'utf16le').toString('base64')
+    const elevatedCmd = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
+
+    try {
+      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCmd}"`)
+      for (const file of files) {
+        if (!fs.existsSync(file)) {
+          filesDeleted++
+        } else {
+          errors.push(`Nie udało się usunąć folderu: ${file}`)
+        }
+      }
+      regsDeleted = registry.length
+
+      return {
+        success: errors.length === 0,
+        filesDeleted,
+        regsDeleted,
+        errors
+      }
+    } catch (err: any) {
+      console.error('[Leftovers Cleaning Error]:', err)
+      return {
+        success: false,
+        filesDeleted: 0,
+        regsDeleted: 0,
+        errors: [err.message]
+      }
     }
   })
 }

@@ -1,19 +1,31 @@
 import { useState, useEffect } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import {
   Settings as SettingsIcon,
   Monitor,
   Clock,
   ShieldAlert,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  Activity,
+  Sliders,
+  User,
+  UploadCloud,
+  DownloadCloud,
+  Cloud,
+  RefreshCw
 } from 'lucide-react'
 
 export function Settings() {
+  const { user } = useOutletContext<{ user: any }>() || {}
   const [autoCheckEnabled, setAutoCheckEnabled] = useState(true)
   const [checkIntervalHours, setCheckIntervalHours] = useState('6')
   const [minimizeToTray, setMinimizeToTray] = useState(true)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [autoRestorePoint, setAutoRestorePoint] = useState(true)
+  const [openAtLogin, setOpenAtLogin] = useState(false)
+  const [thermalMonitorEnabled, setThermalMonitorEnabled] = useState(true)
+  const [thermalThresholdTemp, setThermalThresholdTemp] = useState('85')
   const [, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [iconCacheCleared, setIconCacheCleared] = useState(false)
@@ -25,6 +37,29 @@ export function Settings() {
   const [autoUpdateScope, setAutoUpdateScope] = useState('all')
   const [installedApps, setInstalledApps] = useState<any[]>([])
   const [whitelist, setWhitelist] = useState<string[]>([])
+
+  // Cloud Sync & Telemetry states
+  const [autoSyncCloud, setAutoSyncCloud] = useState(false)
+  const [telemetryEnabled, setTelemetryEnabled] = useState(true)
+  const [lastSyncedAt, setLastSyncedAt] = useState('Nigdy')
+  const [syncingToCloud, setSyncingToCloud] = useState(false)
+  const [syncingFromCloud, setSyncingFromCloud] = useState(false)
+  const [submittingTelemetry, setSubmittingTelemetry] = useState(false)
+  const [cloudSyncError, setCloudSyncError] = useState('')
+  const [telemetryError, setTelemetryError] = useState('')
+  const [telemetrySuccess, setTelemetrySuccess] = useState(false)
+
+  // HUD & Cleaner Settings
+  const [autoCleanEnabled, setAutoCleanEnabled] = useState(false)
+  const [autoCleanInterval, setAutoCleanInterval] = useState('weekly')
+  const [hudOpacity, setHudOpacity] = useState('0.72')
+  const [hudHuePrimary, setHudHuePrimary] = useState('180')
+  const [hudHueSecondary, setHudHueSecondary] = useState('280')
+  const [hudSensorCpu, setHudSensorCpu] = useState(true)
+  const [hudSensorRam, setHudSensorRam] = useState(true)
+  const [hudSensorGpu, setHudSensorGpu] = useState(true)
+  const [hudSensorFps, setHudSensorFps] = useState(true)
+  const [hudSensorPing, setHudSensorPing] = useState(true)
 
   // Załaduj ustawienia przy starcie
   useEffect(() => {
@@ -45,6 +80,15 @@ export function Settings() {
         const autoRestoreRes = await window.api.getSetting('auto_restore_point', 'true')
         setAutoRestorePoint(autoRestoreRes.value === 'true')
 
+        const openAtLoginRes = await window.api.getSetting('open_at_login', 'false')
+        setOpenAtLogin(openAtLoginRes.value === 'true')
+
+        const thermalEnabledRes = await window.api.getSetting('thermal_monitor_enabled', 'true')
+        setThermalMonitorEnabled(thermalEnabledRes.value === 'true')
+
+        const thermalThresholdRes = await window.api.getSetting('thermal_threshold_temp', '85')
+        setThermalThresholdTemp(thermalThresholdRes.value || '85')
+
         const autoUpRes = await window.api.getSetting('auto_update_enabled', 'false')
         setAutoUpdateEnabled(autoUpRes.value === 'true')
 
@@ -62,6 +106,47 @@ export function Settings() {
 
         const upWhitelistRes = await window.api.getSetting('auto_update_whitelist', '')
         setWhitelist(upWhitelistRes.value ? upWhitelistRes.value.split(',') : [])
+
+        // Load HUD & Cleaner settings
+        const autoCleanEnabledRes = await window.api.getSetting('auto_clean_enabled', 'false')
+        setAutoCleanEnabled(autoCleanEnabledRes.value === 'true')
+
+        const autoCleanIntervalRes = await window.api.getSetting('auto_clean_interval', 'weekly')
+        setAutoCleanInterval(autoCleanIntervalRes.value || 'weekly')
+
+        const hudOpacityRes = await window.api.getSetting('hud_opacity', '0.72')
+        setHudOpacity(hudOpacityRes.value || '0.72')
+
+        const hudHuePrimaryRes = await window.api.getSetting('hud_hue_primary', '180')
+        setHudHuePrimary(hudHuePrimaryRes.value || '180')
+
+        const hudHueSecondaryRes = await window.api.getSetting('hud_hue_secondary', '280')
+        setHudHueSecondary(hudHueSecondaryRes.value || '280')
+
+        const hudSensorCpuRes = await window.api.getSetting('hud_sensor_cpu', 'true')
+        setHudSensorCpu(hudSensorCpuRes.value === 'true')
+
+        const hudSensorRamRes = await window.api.getSetting('hud_sensor_ram', 'true')
+        setHudSensorRam(hudSensorRamRes.value === 'true')
+
+        const hudSensorGpuRes = await window.api.getSetting('hud_sensor_gpu', 'true')
+        setHudSensorGpu(hudSensorGpuRes.value === 'true')
+
+        const hudSensorFpsRes = await window.api.getSetting('hud_sensor_fps', 'true')
+        setHudSensorFps(hudSensorFpsRes.value === 'true')
+
+        const hudSensorPingRes = await window.api.getSetting('hud_sensor_ping', 'true')
+        setHudSensorPing(hudSensorPingRes.value === 'true')
+
+        // Load Cloud Sync & Telemetry Settings
+        const autoSyncRes = await window.api.getSetting('auto_sync_cloud', 'false')
+        setAutoSyncCloud(autoSyncRes.value === 'true')
+
+        const telemetryRes = await window.api.getSetting('telemetry_enabled', 'true')
+        setTelemetryEnabled(telemetryRes.value === 'true')
+
+        const lastSyncedRes = await window.api.getSetting('last_synced_at', 'Nigdy')
+        setLastSyncedAt(lastSyncedRes.value || 'Nigdy')
 
         const installedRes = await window.api.getInstalledApps()
         if (installedRes.success) {
@@ -125,6 +210,147 @@ export function Settings() {
     await window.api.saveSetting('auto_update_whitelist', newWhitelist.join(','))
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 2000)
+  }
+
+  const handleExportProfile = async () => {
+    try {
+      const res = await window.api.auth.exportUserProfile(user?.id)
+      if (res.success && res.profileJson) {
+        const blob = new Blob([res.profileJson], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `updater_win_profile_${user?.name || 'user'}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+      } else {
+        alert(res.error || 'Błąd podczas eksportowania profilu.')
+      }
+    } catch (err: any) {
+      alert(`Błąd eksportu: ${err.message}`)
+    }
+  }
+
+  const handleImportProfile = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = async (evt: any) => {
+        try {
+          const content = evt.target.result
+          const res = await window.api.auth.importUserProfile(content)
+          if (res.success) {
+            alert('Profil i ustawienia zostały zaimportowane pomyślnie! Kliknij OK, aby odświeżyć aplikację.')
+            window.location.reload()
+          } else {
+            alert(res.error || 'Nieprawidłowy plik profilu.')
+          }
+        } catch (err: any) {
+          alert(`Błąd importu: ${err.message}`)
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }
+
+  const handleSyncToCloud = async () => {
+    const token = localStorage.getItem('auth_token') || ''
+    if (!token) {
+      setCloudSyncError('Wymagane zalogowanie, aby korzystać z synchronizacji chmurowej.')
+      return
+    }
+    setSyncingToCloud(true)
+    setCloudSyncError('')
+    try {
+      const res = await window.api.auth.syncProfileToCloud(token)
+      if (res.success) {
+        const timeStr = res.lastSyncedAt ? new Date(res.lastSyncedAt).toLocaleString('pl-PL') : new Date().toLocaleString('pl-PL')
+        setLastSyncedAt(timeStr)
+        await window.api.saveSetting('last_synced_at', timeStr)
+      } else {
+        setCloudSyncError(res.error || 'Nieznany błąd synchronizacji.')
+      }
+    } catch (err: any) {
+      setCloudSyncError(err.message || 'Wystąpił błąd podczas komunikacji z serwerem.')
+    } finally {
+      setSyncingToCloud(false)
+    }
+  }
+
+  const handleSyncFromCloud = async () => {
+    const token = localStorage.getItem('auth_token') || ''
+    if (!token) {
+      setCloudSyncError('Wymagane zalogowanie, aby korzystać z synchronizacji chmurowej.')
+      return
+    }
+    setSyncingFromCloud(true)
+    setCloudSyncError('')
+    try {
+      const res = await window.api.auth.syncProfileFromCloud(token)
+      if (res.success) {
+        alert('Ustawienia i spersonalizowane nazwy zostały pomyślnie zsynchronizowane z chmury!')
+        window.location.reload()
+      } else {
+        setCloudSyncError(res.error || 'Nieznany błąd pobierania danych.')
+      }
+    } catch (err: any) {
+      setCloudSyncError(err.message || 'Wystąpił błąd podczas komunikacji z serwerem.')
+    } finally {
+      setSyncingFromCloud(false)
+    }
+  }
+
+  const handleSubmitTelemetry = async () => {
+    const token = localStorage.getItem('auth_token') || ''
+    setSubmittingTelemetry(true)
+    setTelemetryError('')
+    setTelemetrySuccess(false)
+    try {
+      let hardwareInfo: any = null
+      try {
+        const hw = await window.api.getHardwareInfo()
+        if (hw.success) hardwareInfo = hw.data
+      } catch (e) {
+        // Fallback
+      }
+
+      const telemetryData = {
+        os: 'Windows 10/11',
+        appVersion: '1.4.0',
+        timestamp: new Date().toISOString(),
+        settings: {
+          autoCheckEnabled,
+          checkIntervalHours,
+          autoUpdateEnabled,
+          autoCleanEnabled,
+          autoRestorePoint,
+          telemetryEnabled,
+          autoSyncCloud
+        },
+        hardware: hardwareInfo ? {
+          cpu: hardwareInfo.cpu?.brand || hardwareInfo.cpu?.name,
+          ram: hardwareInfo.ram?.total,
+          gpu: hardwareInfo.gpu?.name || (hardwareInfo.gpu?.controllers && hardwareInfo.gpu.controllers[0]?.model)
+        } : 'Brak danych sprzętowych'
+      }
+
+      const res = await window.api.auth.submitSystemTelemetry(token, telemetryData)
+      if (res.success) {
+        setTelemetrySuccess(true)
+        setTimeout(() => setTelemetrySuccess(false), 3000)
+      } else {
+        setTelemetryError(res.error || 'Błąd wysyłania telemetrii.')
+      }
+    } catch (err: any) {
+      setTelemetryError(err.message || 'Błąd komunikacji z serwerem telemetrii.')
+    } finally {
+      setSubmittingTelemetry(false)
+    }
   }
 
   return (
@@ -208,6 +434,187 @@ export function Settings() {
               <option value="12">Co 12 godzin</option>
               <option value="24">Co 24 godziny</option>
             </select>
+          </div>
+        </section>
+
+        {/* Sekcja: Konto & Synchronizacja Chmurowa */}
+        <section className="settings-section glass-panel">
+          <h3 className="section-title">
+            <User size={18} color="var(--color-primary)" />
+            Konto & Synchronizacja Chmurowa
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '8px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '16px', flexWrap: 'wrap' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '20px', flexShrink: 0 }}>
+                {user?.name ? user.name[0].toUpperCase() : 'A'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: '#fff', fontSize: '15px' }}>{user?.name || 'Zalogowany Administrator'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{user?.email || 'Brak powiązanego adresu email'}</div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn btn-secondary flex items-center gap-xs"
+                  onClick={handleExportProfile}
+                  title="Eksportuj ustawienia do pliku JSON"
+                  style={{ padding: '8px 12px', borderRadius: '10px', fontSize: '12px', gap: '6px' }}
+                >
+                  <DownloadCloud size={14} />
+                  <span>Kopia (Eksport)</span>
+                </button>
+                <button
+                  className="btn btn-primary flex items-center gap-xs"
+                  onClick={handleImportProfile}
+                  title="Importuj profil z pliku JSON"
+                  style={{ padding: '8px 12px', borderRadius: '10px', fontSize: '12px', gap: '6px', background: 'var(--color-primary)', color: '#000', fontWeight: '600' }}
+                >
+                  <UploadCloud size={14} />
+                  <span>Przywróć (Import)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cloud Synchronization Panel */}
+            <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Cloud size={16} color="var(--color-primary)" />
+                    Synchronizacja Chmurowa
+                  </h4>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                    Ostatnia synchronizacja: <strong style={{ color: 'var(--color-primary)' }}>{lastSyncedAt}</strong>
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="btn btn-secondary flex items-center gap-xs"
+                    onClick={handleSyncFromCloud}
+                    disabled={syncingFromCloud || syncingToCloud}
+                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', gap: '6px' }}
+                  >
+                    {syncingFromCloud ? (
+                      <RefreshCw size={12} className="animate-spin" />
+                    ) : (
+                      <DownloadCloud size={12} />
+                    )}
+                    <span>Pobierz</span>
+                  </button>
+                  <button
+                    className="btn btn-primary flex items-center gap-xs"
+                    onClick={handleSyncToCloud}
+                    disabled={syncingFromCloud || syncingToCloud}
+                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', gap: '6px', background: 'var(--color-primary)', color: '#000', fontWeight: 600 }}
+                  >
+                    {syncingToCloud ? (
+                      <RefreshCw size={12} className="animate-spin" />
+                    ) : (
+                      <UploadCloud size={12} />
+                    )}
+                    <span>Wyślij</span>
+                  </button>
+                </div>
+              </div>
+
+              {cloudSyncError && (
+                <div style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '12px' }}>
+                  {cloudSyncError}
+                </div>
+              )}
+
+              {/* Toggles inside cloud panel */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                <div className="setting-row" style={{ padding: 0 }}>
+                  <div className="setting-info">
+                    <span className="setting-label" style={{ fontSize: '13px' }}>Automatyczna synchronizacja</span>
+                    <span className="setting-desc" style={{ fontSize: '11px' }}>
+                      Automatycznie synchronizuj profil z chmurą przy wprowadzaniu zmian
+                    </span>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={autoSyncCloud}
+                      onChange={(e) =>
+                        handleSave(
+                          'auto_sync_cloud',
+                          e.target.checked.toString(),
+                          setAutoSyncCloud,
+                          e.target.checked
+                        )
+                      }
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+
+                <div className="setting-row" style={{ padding: 0 }}>
+                  <div className="setting-info">
+                    <span className="setting-label" style={{ fontSize: '13px' }}>Telemetria & Raportowanie</span>
+                    <span className="setting-desc" style={{ fontSize: '11px' }}>
+                      Wspieraj rozwój aplikacji wysyłając zanonimizowane statystyki wydajności
+                    </span>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={telemetryEnabled}
+                      onChange={(e) =>
+                        handleSave(
+                          'telemetry_enabled',
+                          e.target.checked.toString(),
+                          setTelemetryEnabled,
+                          e.target.checked
+                        )
+                      }
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Diagnostics and Manual Telemetry */}
+            {telemetryEnabled && (
+              <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Activity size={15} color="var(--color-secondary)" />
+                      Zanonimizowany Raport Diagnostyczny
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                      Wysyła konfigurację sprzętową (CPU/RAM/GPU) oraz status optymalizacji.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-secondary flex items-center gap-xs"
+                    onClick={handleSubmitTelemetry}
+                    disabled={submittingTelemetry}
+                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '11px', gap: '6px' }}
+                  >
+                    {submittingTelemetry ? (
+                      <RefreshCw size={12} className="animate-spin" />
+                    ) : (
+                      <span>Wyślij telemetrię teraz</span>
+                    )}
+                  </button>
+                </div>
+
+                {telemetrySuccess && (
+                  <div style={{ fontSize: '11px', color: 'var(--color-success)', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.2)', marginTop: '10px' }}>
+                    Telemetria została pomyślnie przesłana i zanonimizowana na serwerze!
+                  </div>
+                )}
+
+                {telemetryError && (
+                  <div style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', marginTop: '10px' }}>
+                    {telemetryError}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -482,6 +889,30 @@ export function Settings() {
 
           <div className="setting-row">
             <div className="setting-info">
+              <span className="setting-label">Uruchamiaj z systemem Windows</span>
+              <span className="setting-desc">
+                Automatycznie uruchamiaj aplikację przy starcie systemu operacyjnego
+              </span>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={openAtLogin}
+                onChange={(e) =>
+                  handleSave(
+                    'open_at_login',
+                    e.target.checked.toString(),
+                    setOpenAtLogin,
+                    e.target.checked
+                  )
+                }
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-info">
               <span className="setting-label">Powiadomienia systemowe</span>
               <span className="setting-desc">
                 Wyświetla powiadomienia Toast w systemie Windows o nowych aktualizacjach
@@ -502,6 +933,328 @@ export function Settings() {
               />
               <span className="slider"></span>
             </label>
+          </div>
+        </section>
+
+        {/* Sekcja: Monitorowanie & Ochrona Termiczna */}
+        <section className="settings-section glass-panel">
+          <h3 className="section-title">
+            <ShieldAlert size={18} color="var(--color-warning)" />
+            Monitorowanie & Ochrona Termiczna
+          </h3>
+
+          <div className="setting-row">
+            <div className="setting-info">
+              <span className="setting-label">Monitorowanie temperatury w tle</span>
+              <span className="setting-desc">
+                Cyklicznie bada temperaturę procesora (CPU) i karty graficznej (GPU) w celu wykrycia przegrzania
+              </span>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={thermalMonitorEnabled}
+                onChange={(e) =>
+                  handleSave(
+                    'thermal_monitor_enabled',
+                    e.target.checked.toString(),
+                    setThermalMonitorEnabled,
+                    e.target.checked
+                  )
+                }
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+
+          <div className={`setting-row ${!thermalMonitorEnabled ? 'disabled' : ''}`}>
+            <div className="setting-info">
+              <span className="setting-label">Próg temperatury ostrzeżenia</span>
+              <span className="setting-desc">
+                Temperatura, po której przekroczeniu na dłużej niż 30 sekund otrzymasz powiadomienie systemowe
+              </span>
+            </div>
+            <select
+              value={thermalThresholdTemp}
+              disabled={!thermalMonitorEnabled}
+              onChange={(e) =>
+                handleSave(
+                  'thermal_threshold_temp',
+                  e.target.value,
+                  setThermalThresholdTemp,
+                  e.target.value
+                )
+              }
+              className="select-custom"
+            >
+              <option value="70">70°C (Niski próg)</option>
+              <option value="75">75°C</option>
+              <option value="80">80°C</option>
+              <option value="85">85°C (Domyślny / Zalecane)</option>
+              <option value="90">90°C (Wysoki próg)</option>
+            </select>
+          </div>
+        </section>
+
+        {/* Sekcja: Harmonogram Czyszczenia w Tle */}
+        <section className="settings-section glass-panel">
+          <h3 className="section-title">
+            <Sliders size={18} color="var(--color-primary)" />
+            Automatyczne Czyszczenie Dysku w Tle
+          </h3>
+
+          <div className="setting-row">
+            <div className="setting-info">
+              <span className="setting-label">Włącz automatyczne czyszczenie</span>
+              <span className="setting-desc">
+                Okresowo czyści pliki tymczasowe, logi i pamięć podręczną w tle
+              </span>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={autoCleanEnabled}
+                onChange={(e) =>
+                  handleSave(
+                    'auto_clean_enabled',
+                    e.target.checked.toString(),
+                    setAutoCleanEnabled,
+                    e.target.checked
+                  )
+                }
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+
+          <div className={`setting-row ${!autoCleanEnabled ? 'disabled' : ''}`}>
+            <div className="setting-info">
+              <span className="setting-label">Interwał czyszczenia</span>
+              <span className="setting-desc">
+                Określa, jak często ma być uruchamiane czyszczenie w tle
+              </span>
+            </div>
+            <select
+              value={autoCleanInterval}
+              disabled={!autoCleanEnabled}
+              onChange={(e) =>
+                handleSave(
+                  'auto_clean_interval',
+                  e.target.value,
+                  setAutoCleanInterval,
+                  e.target.value
+                )
+              }
+              className="select-custom"
+            >
+              <option value="daily">Codziennie</option>
+              <option value="weekly">Co tydzień (Zalecane)</option>
+              <option value="monthly">Co miesiąc</option>
+            </select>
+          </div>
+        </section>
+
+        {/* Sekcja: Konfiguracja nakładki HUD */}
+        <section className="settings-section glass-panel">
+          <h3 className="section-title">
+            <Activity size={18} color="var(--color-secondary)" />
+            Personalizacja Nakładki HUD
+          </h3>
+
+          <div className="setting-row flex-col" style={{ alignItems: 'stretch', gap: '16px' }}>
+            <div className="setting-info">
+              <span className="setting-label">Przezroczystość tła HUD</span>
+              <span className="setting-desc">Dostosuj przezroczystość tła (aktualna: {Math.round(parseFloat(hudOpacity) * 100)}%)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={hudOpacity}
+                onChange={(e) => {
+                  setHudOpacity(e.target.value)
+                }}
+                onMouseUp={(e: any) =>
+                  handleSave(
+                    'hud_opacity',
+                    e.target.value,
+                    setHudOpacity,
+                    e.target.value
+                  )
+                }
+                style={{ flex: 1, accentColor: 'var(--color-primary)' }}
+              />
+              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>{hudOpacity}</span>
+            </div>
+          </div>
+
+          <div className="setting-row flex-col" style={{ alignItems: 'stretch', gap: '16px' }}>
+            <div className="setting-info">
+              <span className="setting-label">Kolor wiodący HUD (Barwa Hue)</span>
+              <span className="setting-desc">Dostosuj podstawową barwę HSL (aktualna: {hudHuePrimary}°)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={hudHuePrimary}
+                onChange={(e) => {
+                  setHudHuePrimary(e.target.value)
+                }}
+                onMouseUp={(e: any) =>
+                  handleSave(
+                    'hud_hue_primary',
+                    e.target.value,
+                    setHudHuePrimary,
+                    e.target.value
+                  )
+                }
+                style={{ flex: 1, accentColor: `hsl(${hudHuePrimary}, 100%, 50%)` }}
+              />
+              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>{hudHuePrimary}°</span>
+            </div>
+          </div>
+
+          <div className="setting-row flex-col" style={{ alignItems: 'stretch', gap: '16px' }}>
+            <div className="setting-info">
+              <span className="setting-label">Kolor pomocniczy HUD (Barwa Hue)</span>
+              <span className="setting-desc">Dostosuj wtórną barwę HSL (aktualna: {hudHueSecondary}°)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={hudHueSecondary}
+                onChange={(e) => {
+                  setHudHueSecondary(e.target.value)
+                }}
+                onMouseUp={(e: any) =>
+                  handleSave(
+                    'hud_hue_secondary',
+                    e.target.value,
+                    setHudHueSecondary,
+                    e.target.value
+                  )
+                }
+                style={{ flex: 1, accentColor: `hsl(${hudHueSecondary}, 100%, 50%)` }}
+              />
+              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>{hudHueSecondary}°</span>
+            </div>
+          </div>
+
+          <div className="setting-row flex-col" style={{ alignItems: 'stretch', padding: '12px 0' }}>
+            <div className="setting-info mb-sm">
+              <span className="setting-label">Aktywne sensory w HUD</span>
+              <span className="setting-desc">Wybierz metryki wyświetlane na nakładce HUD</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
+              {/* CPU Sensor */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <span className="text-xs font-semibold text-white">Sensor CPU</span>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={hudSensorCpu}
+                    onChange={(e) =>
+                      handleSave(
+                        'hud_sensor_cpu',
+                        e.target.checked.toString(),
+                        setHudSensorCpu,
+                        e.target.checked
+                      )
+                    }
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
+              {/* RAM Sensor */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <span className="text-xs font-semibold text-white">Sensor RAM</span>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={hudSensorRam}
+                    onChange={(e) =>
+                      handleSave(
+                        'hud_sensor_ram',
+                        e.target.checked.toString(),
+                        setHudSensorRam,
+                        e.target.checked
+                      )
+                    }
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
+              {/* GPU Sensor */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <span className="text-xs font-semibold text-white">Sensor GPU</span>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={hudSensorGpu}
+                    onChange={(e) =>
+                      handleSave(
+                        'hud_sensor_gpu',
+                        e.target.checked.toString(),
+                        setHudSensorGpu,
+                        e.target.checked
+                      )
+                    }
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
+              {/* FPS Sensor */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <span className="text-xs font-semibold text-white">Klatki (FPS)</span>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={hudSensorFps}
+                    onChange={(e) =>
+                      handleSave(
+                        'hud_sensor_fps',
+                        e.target.checked.toString(),
+                        setHudSensorFps,
+                        e.target.checked
+                      )
+                    }
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
+              {/* Ping Sensor */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <span className="text-xs font-semibold text-white">Opóźnienie (Ping)</span>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={hudSensorPing}
+                    onChange={(e) =>
+                      handleSave(
+                        'hud_sensor_ping',
+                        e.target.checked.toString(),
+                        setHudSensorPing,
+                        e.target.checked
+                      )
+                    }
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
         </section>
 

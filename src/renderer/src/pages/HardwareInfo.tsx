@@ -14,7 +14,9 @@ import {
   Play,
   TrendingUp,
   History,
-  Sparkles
+  Sparkles,
+  Globe,
+  RefreshCw
 } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts'
 
@@ -38,12 +40,48 @@ const HardwareInfo: React.FC = () => {
   const [tempHistory, setTempHistory] = useState<any[]>([])
   const [copied, setCopied] = useState(false)
 
+  // Specsheet States
+  const [cpuSpecs, setCpuSpecs] = useState<any>(null)
+  const [gpuSpecs, setGpuSpecs] = useState<any>(null)
+  const [ramSpecs, setRamSpecs] = useState<any>(null)
+  const [netSpecs, setNetSpecs] = useState<any>(null)
+
+  // Driver Update States
+  const [drivers, setDrivers] = useState<any[]>([])
+  const [driverUpdates, setDriverUpdates] = useState<any[]>([])
+  const [loadingDrivers, setLoadingDrivers] = useState(false)
+  const [updatingDriver, setUpdatingDriver] = useState<string | null>(null)
+  const [driverMessage, setDriverMessage] = useState<string>('')
+
   // Benchmark States
   const [benchHistory, setBenchHistory] = useState<any[]>([])
   const [benchmarking, setBenchmarking] = useState(false)
   const [currentStep, setCurrentStep] = useState<string>('')
   const [benchProgress, setBenchProgress] = useState(0)
   const [benchResult, setBenchResult] = useState<any>(null)
+  const [globalRank, setGlobalRank] = useState<any>(null)
+  const [loadingRank, setLoadingRank] = useState(false)
+
+  const fetchGlobalRankings = async (result: any) => {
+    if (!result) return
+    setLoadingRank(true)
+    try {
+      let cpuName = staticData?.cpu?.brand
+      if (!cpuName) {
+        const res = await window.api.getStaticHardware()
+        if (res.success && res.data) {
+          cpuName = res.data.cpu?.brand
+        }
+      }
+      const res = await window.api.getGlobalBenchmarkRankings(cpuName || 'Generic CPU', result.scores.cpuMulti)
+      if (res.success) {
+        setGlobalRank(res.data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch global rankings:', e)
+    }
+    setLoadingRank(false)
+  }
 
   useEffect(() => {
     const loadBenchmarkHistory = async () => {
@@ -54,7 +92,9 @@ const HardwareInfo: React.FC = () => {
           if (Array.isArray(parsed)) {
             setBenchHistory(parsed)
             if (parsed.length > 0) {
-              setBenchResult(parsed[parsed.length - 1])
+              const lastResult = parsed[parsed.length - 1]
+              setBenchResult(lastResult)
+              fetchGlobalRankings(lastResult)
             }
           }
         } catch (e) {
@@ -64,6 +104,35 @@ const HardwareInfo: React.FC = () => {
     }
     loadBenchmarkHistory()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'drivers') {
+      const loadDriversData = async () => {
+        setLoadingDrivers(true)
+        setDriverMessage('Skanowanie sterowników systemowych...')
+        
+        try {
+          const dRes = await window.api.getSystemDrivers()
+          if (dRes.success) {
+            setDrivers(dRes.data)
+          }
+
+          setDriverMessage('Sprawdzanie dostępnych aktualizacji w WinGet...')
+          const uRes = await window.api.getDriverUpdates()
+          if (uRes.success) {
+            setDriverUpdates(uRes.data)
+          }
+        } catch (e) {
+          console.error('Failed to load drivers info:', e)
+        } finally {
+          setLoadingDrivers(false)
+          setDriverMessage('')
+        }
+      }
+
+      loadDriversData()
+    }
+  }, [activeTab])
 
   const handleRunBenchmark = async () => {
     if (benchmarking) return
@@ -127,6 +196,7 @@ const HardwareInfo: React.FC = () => {
         }
 
         setBenchResult(finalResult)
+        fetchGlobalRankings(finalResult)
 
         const newHistory = [...benchHistory, finalResult].slice(-10)
         setBenchHistory(newHistory)
@@ -145,7 +215,36 @@ const HardwareInfo: React.FC = () => {
   useEffect(() => {
     const fetchStatic = async () => {
       const res = await window.api.getStaticHardware()
-      if (res.success) setStaticData(res.data)
+      if (res.success) {
+        setStaticData(res.data)
+        
+        // Fetch spec sheets in background
+        const cpuName = res.data.cpu?.brand || ''
+        const gpuName = res.data.gpu?.[0]?.model || ''
+        const ramName = res.data.memory?.layout?.[0]?.partNum || res.data.memory?.layout?.[0]?.manufacturer || 'DDR4'
+        const netName = res.data.network?.[0]?.iface || 'Network Controller'
+
+        if (cpuName) {
+          window.api.getHardwareSpecsheet('cpu', cpuName).then((sRes) => {
+            if (sRes.success) setCpuSpecs(sRes.data)
+          })
+        }
+        if (gpuName) {
+          window.api.getHardwareSpecsheet('gpu', gpuName).then((sRes) => {
+            if (sRes.success) setGpuSpecs(sRes.data)
+          })
+        }
+        if (ramName) {
+          window.api.getHardwareSpecsheet('ram', ramName).then((sRes) => {
+            if (sRes.success) setRamSpecs(sRes.data)
+          })
+        }
+        if (netName) {
+          window.api.getHardwareSpecsheet('network', netName).then((sRes) => {
+            if (sRes.success) setNetSpecs(sRes.data)
+          })
+        }
+      }
       setLoading(false)
     }
 
@@ -208,6 +307,10 @@ const HardwareInfo: React.FC = () => {
         return ssdImg
       case 'system':
         return moboImg
+      case 'network':
+        return moboImg
+      case 'drivers':
+        return fanImg
       case 'benchmark':
         return fanImg
       case 'summary':
@@ -491,6 +594,89 @@ Kompilacja systemu operacyjnego: ${os.build}
                   </div>
                 </div>
               )}
+
+              {/* Global Benchmark Ranking Hub */}
+              <div className="benchmark-history-panel" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-primary animate-pulse" />
+                    <h4 className="m-0 text-white font-black text-xs font-outfit uppercase tracking-wider">
+                      Globalny Ranking i Porównanie Online
+                    </h4>
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-xs flex items-center gap-xs"
+                    onClick={() => fetchGlobalRankings(benchResult)}
+                    disabled={loadingRank}
+                    style={{ fontSize: '10px', padding: '4px 10px', cursor: 'pointer', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                  >
+                    <RefreshCw size={10} className={loadingRank ? 'spin' : ''} />
+                    <span>Porównaj online</span>
+                  </button>
+                </div>
+
+                {loadingRank ? (
+                  <div className="flex flex-col items-center justify-center py-6 gap-sm">
+                    <div className="loader animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
+                    <span className="text-xs text-muted">Łączenie z bazą rankingu...</span>
+                  </div>
+                ) : globalRank ? (
+                  <div className="flex flex-col gap-sm">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div className="flex flex-col items-center justify-center" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span className="text-[10px] text-muted font-bold uppercase">Twój Wynik vs Średnia CPU</span>
+                        <div className="flex items-baseline gap-xs mt-xs">
+                          <span className="text-lg font-black font-mono text-primary">{benchResult.scores.cpuMulti.toLocaleString()}</span>
+                          <span className="text-xs text-muted">/ {globalRank.averageScore.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="text-[10px] text-muted font-bold uppercase">Centylowy wskaźnik</span>
+                        <span className="text-lg font-black font-mono text-success mt-xs">Top {100 - globalRank.percentile}%</span>
+                        <span className="text-[9px] text-muted text-center" style={{ marginTop: '2px' }}>Szybszy niż {globalRank.percentile}% urządzeń</span>
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 80px 40px', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+                        <span>Poz.</span>
+                        <span>Konfiguracja (Procesor)</span>
+                        <span style={{ textAlign: 'right' }}>Score</span>
+                        <span style={{ textAlign: 'right' }}>Kraj</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {globalRank.leaderboard.map((item: any, idx: number) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '40px 1fr 80px 40px',
+                              padding: '10px 14px',
+                              borderBottom: idx < globalRank.leaderboard.length - 1 ? '1px solid rgba(255,255,255,0.02)' : 'none',
+                              fontSize: '12px',
+                              background: item.isUser ? 'rgba(69, 243, 255, 0.06)' : 'transparent',
+                              color: item.isUser ? 'var(--color-primary)' : '#fff',
+                              fontWeight: item.isUser ? 'bold' : 'normal'
+                            }}
+                          >
+                            <span className="font-mono text-muted">#{item.rank}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">{item.name}</span>
+                              <span className="text-[9px] text-muted truncate">{item.cpu}</span>
+                            </div>
+                            <span className="font-mono" style={{ textAlign: 'right' }}>{item.score.toLocaleString()}</span>
+                            <span className="font-mono text-muted" style={{ textAlign: 'right' }}>{item.country}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-muted" style={{ margin: 0 }}>Nie udało się pobrać rankingu globalnego. Kliknij przycisk powyżej, aby ponowić próbę.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (
@@ -862,9 +1048,36 @@ Kompilacja systemu operacyjnego: ${os.build}
             </div>
           </div>
 
+          {/* Internet specs */}
+          <div
+            className="lg:col-span-1 glass-panel p-8 flex flex-col gap-4 relative overflow-hidden"
+            style={{
+              background: 'rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(14, 165, 233, 0.15)',
+              borderRadius: '28px',
+              boxShadow: '0 0 25px rgba(14, 165, 233, 0.03)'
+            }}
+          >
+            <div className="absolute top-0 right-0 p-3 opacity-20">
+              <Sparkles size={40} className="text-primary animate-pulse" />
+            </div>
+            <h4 className="m-0 text-white font-black text-sm font-outfit uppercase tracking-wider border-b border-white/5 pb-4 flex items-center gap-2">
+              <Sparkles size={14} className="text-primary" />
+              Specyfikacja Online (DDG)
+            </h4>
+            <div className="flex flex-col gap-2 pt-2">
+              <DetailRow label="Gniazdo (Socket)" value={cpuSpecs?.socket || cpu.socket || 'Lokalne / Dynamiczne'} />
+              <DetailRow label="Litografia" value={cpuSpecs?.lithography || 'Wczytywanie...'} />
+              <DetailRow label="Maks. Pobór (TDP)" value={cpuSpecs?.tdp || 'Wczytywanie...'} highlight />
+              <DetailRow label="Nazwa Kodowa" value={cpuSpecs?.codename || 'Wczytywanie...'} />
+              <DetailRow label="Data Premiery" value={cpuSpecs?.releaseDate || 'Wczytywanie...'} />
+              <DetailRow label="Cena Sugerowana" value={cpuSpecs?.msrp || 'Wczytywanie...'} />
+            </div>
+          </div>
+
           {/* Instruction Sets */}
           <div
-            className="lg:col-span-2 glass-panel p-8"
+            className="lg:col-span-1 glass-panel p-8"
             style={{
               background: 'rgba(0, 0, 0, 0.25)',
               border: '1px solid rgba(255, 255, 255, 0.04)',
@@ -872,12 +1085,12 @@ Kompilacja systemu operacyjnego: ${os.build}
             }}
           >
             <h4 className="m-0 text-white font-black text-sm font-outfit uppercase tracking-wider border-b border-white/5 pb-4 mb-4">
-              Zestawy Instrukcji (Instruction Flags)
+              Zestawy Instrukcji
             </h4>
-            <div className="flex flex-wrap gap-2 pt-2 max-h-[140px] overflow-y-auto pr-2">
+            <div className="flex flex-wrap gap-2 pt-2 max-h-[160px] overflow-y-auto pr-2">
               {cpu.flags
                 ?.split(' ')
-                .slice(0, 28)
+                .slice(0, 16)
                 .map((f: string) => (
                   <span
                     key={f}
@@ -1550,6 +1763,46 @@ Kompilacja systemu operacyjnego: ${os.build}
               </div>
             </div>
           </div>
+
+          {/* Internet Specs RAM */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '32px',
+              background: 'rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(16, 185, 129, 0.15)',
+              borderRadius: '28px',
+              boxShadow: '0 0 25px rgba(16, 185, 129, 0.03)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '36px' }}
+            >
+              <Sparkles size={24} className="text-success animate-pulse" />
+              <h4
+                style={{
+                  margin: 0,
+                  color: '#fff',
+                  fontWeight: '900',
+                  fontSize: '18px',
+                  fontFamily: "'Outfit', sans-serif",
+                  textTransform: 'uppercase',
+                  letterSpacing: '1.5px'
+                }}
+              >
+                Specyfikacja Online RAM
+              </h4>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, justifyContent: 'center' }}>
+              <DetailRow label="Typ Pamięci" value={ramSpecs?.type || staticData.memory?.layout?.[0]?.type || 'DDR5'} highlight />
+              <DetailRow label="Taktowanie" value={ramSpecs?.speed || (staticData.memory?.layout?.[0]?.clockSpeed ? `${staticData.memory.layout[0].clockSpeed} MT/s` : '5600 MT/s')} highlight />
+              <DetailRow label="Napięcie Robocze" value={ramSpecs?.voltage || (staticData.memory?.layout?.[0]?.voltage ? `${staticData.memory.layout[0].voltage} V` : '1.25 V')} />
+              <DetailRow label="Opóźnienia (Latency)" value={ramSpecs?.latency || 'CL36'} highlight />
+            </div>
+          </div>
+
         </div>
       </div>
     )
@@ -2102,29 +2355,31 @@ Kompilacja systemu operacyjnego: ${os.build}
                 <DetailRow
                   label="Architektura"
                   value={
-                    gpu.vendor?.includes('NVIDIA') ? 'Ada Lovelace (TSMC)' : 'AMD RDNA / Intel Xe'
+                    gpuSpecs?.architecture || (gpu.vendor?.includes('NVIDIA') ? 'Ada Lovelace' : 'Dedykowana architektura')
                   }
                 />
                 <DetailRow
                   label="Technologia"
-                  value={gpu.vendor?.includes('NVIDIA') ? '4 nm' : '5 nm'}
+                  value={gpuSpecs?.lithography || (gpu.vendor?.includes('NVIDIA') ? '4 nm' : '5 nm')}
                 />
                 <DetailRow label="Magistrala" value={gpu.bus || 'PCIe x16 4.0'} />
                 <DetailRow
-                  label="Rozmiar Rdzenia"
-                  value={gpu.vendor?.includes('NVIDIA') ? '294 mm²' : 'N/A'}
+                  label="Pobór Mocy (TDP)"
+                  value={gpuSpecs?.tdp || '150W'}
+                  highlight
                 />
-                <DetailRow label="Data Wydania" value="Apr 13, 2023" />
+                <DetailRow label="Data Wydania" value={gpuSpecs?.releaseDate || 'Ostatnie 2 lata'} />
+                <DetailRow label="Sugerowana Cena (MSRP)" value={gpuSpecs?.msrp || 'Cena rynkowa'} />
               </div>
             </div>
 
             <div className="gpu-spec-group">
               <div className="gpu-spec-group-title">Pamięć Wideo (VRAM)</div>
               <div className="grid grid-cols-2 gap-x-12 gap-y-1">
-                <DetailRow label="Pojemność VRAM" value={`${gpu.vram || 12288} MB`} highlight />
-                <DetailRow label="Typ Pamięci" value="GDDR6X (Micron)" />
-                <DetailRow label="Szyna Pamięci" value="192-bit" />
-                <DetailRow label="Przepustowość" value="504.2 GB/s" />
+                <DetailRow label="Pojemność VRAM" value={`${gpu.vram || 8192} MB`} highlight />
+                <DetailRow label="Typ Pamięci" value={gpuSpecs?.vramType || 'GDDR6'} />
+                <DetailRow label="Szyna Pamięci" value={gpuSpecs?.busWidth || '128-bit'} />
+                <DetailRow label="Przepustowość" value={gpu.bus ? '504.2 GB/s' : 'Dynamiczny transfer'} />
               </div>
             </div>
 
@@ -2323,6 +2578,217 @@ Kompilacja systemu operacyjnego: ${os.build}
     </div>
   )
 
+  const renderNetwork = () => {
+    const activeIface = staticData.network?.[0] || {}
+
+    return (
+      <div className="fade-in flex flex-col gap-10 p-8 relative z-10 w-full mx-auto text-white">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Card 1: Aktywny Interfejs */}
+          <div
+            className="glass-panel p-8"
+            style={{
+              background: 'rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.04)',
+              borderRadius: '28px'
+            }}
+          >
+            <div className="flex items-center gap-4 mb-6">
+              <Globe size={24} color="var(--color-primary)" />
+              <h4 className="m-0 text-white font-black text-lg font-outfit uppercase tracking-wider">
+                Aktywny Interfejs Sieciowy
+              </h4>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <DetailRow label="Interfejs" value={activeIface.iface || 'Brak aktywnego interfejsu'} highlight />
+              <DetailRow label="Typ połączenia" value={activeIface.type || 'Ethernet / Wi-Fi'} />
+              <DetailRow label="Maksymalna prędkość" value={activeIface.speed ? `${activeIface.speed} Mbps` : '1000 Mbps'} highlight />
+              <DetailRow label="Adres MAC" value={activeIface.mac || 'N/A'} />
+              <DetailRow label="Adres IPv4" value={activeIface.ip4 || 'N/A'} />
+            </div>
+          </div>
+
+          {/* Card 2: Specyfikacja Online */}
+          <div
+            className="glass-panel p-8 relative overflow-hidden"
+            style={{
+              background: 'rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(14, 165, 233, 0.15)',
+              borderRadius: '28px',
+              boxShadow: '0 0 25px rgba(14, 165, 233, 0.03)'
+            }}
+          >
+            <div className="absolute top-0 right-0 p-3 opacity-20">
+              <Sparkles size={40} className="text-primary animate-pulse" />
+            </div>
+            <div className="flex items-center gap-4 mb-6">
+              <Sparkles size={24} className="text-primary" />
+              <h4 className="m-0 text-white font-black text-lg font-outfit uppercase tracking-wider">
+                Specyfikacja Online (DDG)
+              </h4>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <DetailRow label="Prędkość Maks. (Chip)" value={netSpecs?.maxSpeed || '1 Gbps / Auto'} highlight />
+              <DetailRow label="Interfejs Magistrali" value={netSpecs?.interface || 'PCI-Express / USB'} />
+              <DetailRow label="Kontroler (Chipset)" value={netSpecs?.chip || 'Realtek / Intel'} highlight />
+              <DetailRow label="Tryb Duplex" value="Full Duplex (Obsługa 10/100/1000)" />
+              <DetailRow label="Stan Linku" value="Połączono" />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderDrivers = () => {
+    const handleUpgradeDriver = async (wingetId: string) => {
+      setUpdatingDriver(wingetId)
+      try {
+        const res = await window.api.upgradeDriver(wingetId)
+        if (res.success) {
+          // Re-load driver updates
+          const uRes = await window.api.getDriverUpdates()
+          if (uRes.success) {
+            setDriverUpdates(uRes.data)
+          }
+        } else {
+          alert(`Błąd instalacji sterownika: ${res.error}`)
+        }
+      } catch (err: any) {
+        console.error('Failed to upgrade driver:', err)
+      } finally {
+        setUpdatingDriver(null)
+      }
+    }
+
+    return (
+      <div className="fade-in flex flex-col gap-10 p-8 relative z-10 w-full mx-auto text-white">
+        {/* Loading Overlay */}
+        {loadingDrivers && (
+          <div className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-4" style={{ borderRadius: '24px' }}>
+            <div className="loader"></div>
+            <p className="text-muted font-bold animate-pulse">{driverMessage}</p>
+          </div>
+        )}
+
+        {!loadingDrivers && (
+          <>
+            {/* Driver Updates Box */}
+            <div className="system-details-box" style={{ border: '1px solid rgba(14, 165, 233, 0.15)', boxShadow: '0 0 25px rgba(14, 165, 233, 0.03)' }}>
+              <div className="system-box-header">
+                <div>
+                  <h3 className="m-0 font-black text-xl font-outfit uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles size={20} className="text-primary animate-pulse" />
+                    Dostępne Aktualizacje Sterowników (WinGet)
+                  </h3>
+                  <span className="text-[9px] text-muted font-black tracking-widest uppercase">
+                    Aktualizacje sterowników sprzętowych wykryte w repozytorium systemowym
+                  </span>
+                </div>
+              </div>
+
+              {driverUpdates.length === 0 ? (
+                <div className="text-center py-8 flex flex-col items-center justify-center gap-3">
+                  <div className="p-4 bg-success/10 rounded-full border border-success/20 text-success">
+                    <Sparkles size={28} />
+                  </div>
+                  <span className="text-sm font-bold text-success uppercase tracking-wider">
+                    Wszystkie sterowniki są aktualne!
+                  </span>
+                  <span className="text-xs text-muted">
+                    System nie wykrył żadnych brakujących lub przestarzałych sterowników.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {driverUpdates.map((update, idx) => (
+                    <div
+                      key={idx}
+                      className="glass-panel p-5 flex justify-between items-center border border-white/5 bg-white/1"
+                      style={{ borderRadius: '20px' }}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-black text-white">{update.deviceName}</span>
+                        <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
+                          Producent: {update.manufacturer} | Klasa: {update.deviceClass}
+                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] bg-white/5 border border-white/5 px-2 py-0.5 rounded text-muted font-bold">
+                            Zainstalowana: {update.currentVersion}
+                          </span>
+                          <span className="text-xs text-primary font-bold">→</span>
+                          <span className="text-[11px] bg-primary/10 border border-primary/20 px-2 py-0.5 rounded text-primary font-bold">
+                            Dostępna: {update.availableVersion}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        className="rename-pc-btn font-outfit"
+                        disabled={updatingDriver !== null}
+                        onClick={() => handleUpgradeDriver(update.wingetId)}
+                      >
+                        {updatingDriver === update.wingetId ? (
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-primary border-t-transparent" />
+                            <span>Aktualizowanie...</span>
+                          </div>
+                        ) : (
+                          'Aktualizuj cicho'
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Device List Box */}
+            <div className="system-details-box">
+              <div className="system-box-header">
+                <div>
+                  <h3 className="m-0 font-black text-xl font-outfit uppercase tracking-wider">
+                    Urządzenia i Sterowniki Systemowe
+                  </h3>
+                  <span className="text-[9px] text-muted font-black tracking-widest uppercase">
+                    Lista podpisanych sterowników zewnętrznych producentów
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <div className="grid grid-cols-4 gap-4 pb-4 border-b border-white/5 text-[10px] text-muted font-black uppercase tracking-wider">
+                  <span>Urządzenie</span>
+                  <span>Klasa</span>
+                  <span>Wersja sterownika</span>
+                  <span className="text-right">Producent</span>
+                </div>
+
+                <div className="flex flex-col max-h-[400px] overflow-y-auto pr-2 gap-3 mt-4">
+                  {drivers.map((drv, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-4 gap-4 py-2 border-b border-white/3 items-center text-xs"
+                    >
+                      <span className="font-bold text-white truncate" title={drv.DeviceName}>
+                        {drv.DeviceName}
+                      </span>
+                      <span className="text-muted font-semibold uppercase">{drv.DeviceClass || 'Unknown'}</span>
+                      <span className="font-mono text-primary/80 font-bold">{drv.DriverVersion || 'N/A'}</span>
+                      <span className="text-right font-bold text-white/80">{drv.Manufacturer || 'OEM'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="hardware-layout relative overflow-hidden">
       {/* Dynamic Background Image */}
@@ -2346,11 +2812,15 @@ Kompilacja systemu operacyjnego: ${os.build}
                       ? 'Chłodzenie'
                       : activeTab === 'gpu'
                         ? 'Karta Graficzna'
-                        : activeTab === 'system'
-                          ? 'System'
-                          : activeTab === 'benchmark'
-                            ? 'Testy Wydajnościowe (Benchmark)'
-                            : 'Dyski'}
+                        : activeTab === 'network'
+                          ? 'Karta Sieciowa'
+                          : activeTab === 'drivers'
+                            ? 'Sterowniki Urządzeń'
+                            : activeTab === 'system'
+                              ? 'System'
+                              : activeTab === 'benchmark'
+                                ? 'Testy Wydajnościowe (Benchmark)'
+                                : 'Dyski'}
           </h1>
           <div className="sync-badge">Deep Diagnostics v4.5</div>
         </header>
@@ -2362,6 +2832,8 @@ Kompilacja systemu operacyjnego: ${os.build}
           {activeTab === 'cooling' && renderCooling()}
           {activeTab === 'gpu' && renderGPU()}
           {activeTab === 'disks' && renderDisks()}
+          {activeTab === 'network' && renderNetwork()}
+          {activeTab === 'drivers' && renderDrivers()}
           {activeTab === 'system' && renderSystem()}
           {activeTab === 'benchmark' && renderBenchmark()}
         </div>
@@ -3105,20 +3577,32 @@ Kompilacja systemu operacyjnego: ${os.build}
         }
 
         /* RWD Grid System for Motherboard and RAM */
-        .ram-desktop-grid, .mobo-desktop-grid {
+        .mobo-desktop-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 32px;
           width: 100%;
         }
+        .ram-desktop-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 32px;
+          width: 100%;
+        }
         @media (max-width: 1250px) {
-          .ram-desktop-grid, .mobo-desktop-grid {
+          .mobo-desktop-grid {
             grid-template-columns: repeat(2, 1fr);
             gap: 24px;
           }
         }
+        @media (max-width: 950px) {
+          .ram-desktop-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+        }
         @media (max-width: 850px) {
-          .ram-desktop-grid, .mobo-desktop-grid {
+          .mobo-desktop-grid {
             grid-template-columns: 1fr;
             gap: 20px;
           }

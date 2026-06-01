@@ -450,4 +450,191 @@ export function setupNetworkIPC(): void {
       return { success: false, error: error.message }
     }
   })
+
+  // 9. Pobieranie statusu DoH dla kart sieciowych
+  ipcMain.handle('get-dns-doh-status', async () => {
+    const script = `
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+      $results = @()
+      foreach ($adapter in $adapters) {
+          $guid = $adapter.InterfaceGuid
+          $idx = $adapter.InterfaceIndex
+          $alias = $adapter.InterfaceAlias
+          $dnsServers = Get-DnsClientServerAddress -InterfaceIndex $idx -AddressFamily IPv4 -ErrorAction SilentlyContinue
+          $ips = $dnsServers.ServerAddresses
+          
+          $ipsInfo = @()
+          if ($ips) {
+              foreach ($ip in $ips) {
+                  $regPath = "HKLM:\\System\\CurrentControlSet\\Services\\Dnscache\\InterfaceSpecificParameters\\$guid\\DohInterfaceSettings\\Doh\\$ip"
+                  $active = $false
+                  if (Test-Path $regPath) {
+                      $val = Get-ItemPropertyValue -Path $regPath -Name "DohFlags" -ErrorAction SilentlyContinue
+                      if ($val -eq 1) {
+                          $active = $true
+                      }
+                  }
+                  $ipsInfo += [PSCustomObject]@{
+                      ip = $ip
+                      dohActive = $active
+                  }
+              }
+          }
+          
+          $results += [PSCustomObject]@{
+              interfaceIndex = $idx
+              interfaceGuid = $guid
+              interfaceAlias = $alias
+              dns = $ipsInfo
+          }
+      }
+      $results | ConvertTo-Json
+    `
+    try {
+      const stdout = await runPowerShellScript(script)
+      if (!stdout || stdout.trim() === '') {
+        return { success: true, data: [] }
+      }
+      const parsed = JSON.parse(stdout)
+      const list = Array.isArray(parsed) ? parsed : [parsed]
+      return { success: true, data: list }
+    } catch (error: any) {
+      return { success: false, error: error.message, data: [] }
+    }
+  })
+
+  // 10. Przełączanie DoH dla konkretnego interfejsu (wymaga UAC)
+  ipcMain.handle('toggle-dns-doh', async (_, interfaceGuid: string, dnsIps: string[], enable: boolean) => {
+    if (!interfaceGuid) return { success: false, error: 'Brak identyfikatora karty sieciowej.' }
+    if (!dnsIps || dnsIps.length === 0) return { success: false, error: 'Brak adresów IP serwerów DNS.' }
+
+    const innerScript = `
+      $guid = '${interfaceGuid}'
+      $ips = @(${dnsIps.map(ip => `'${ip}'`).join(', ')})
+      $enable = $${enable ? 'true' : 'false'}
+      
+      foreach ($ip in $ips) {
+          $regPath = "HKLM:\\System\\CurrentControlSet\\Services\\Dnscache\\InterfaceSpecificParameters\\$guid\\DohInterfaceSettings\\Doh\\$ip"
+          if ($enable) {
+              if (!(Test-Path $regPath)) {
+                  New-Item -Path $regPath -Force | Out-Null
+              }
+              New-ItemProperty -Path $regPath -Name "DohFlags" -Value 1 -PropertyType QWORD -Force | Out-Null
+              
+              # Rejestracja szablonu DoH globalnie w Windows 11
+              if ($ip -eq "1.1.1.1" -or $ip -eq "1.0.0.1") {
+                  Add-DnsClientDohServerAddress -ServerAddress $ip -DohTemplate "https://cloudflare-dns.com/dns-query" -AutoUpgrade $true -AllowFallbackToUdp $true -ErrorAction SilentlyContinue
+              } elseif ($ip -eq "8.8.8.8" -or $ip -eq "8.8.4.4") {
+                  Add-DnsClientDohServerAddress -ServerAddress $ip -DohTemplate "https://dns.google/dns-query" -AutoUpgrade $true -AllowFallbackToUdp $true -ErrorAction SilentlyContinue
+              } elseif ($ip -eq "9.9.9.9") {
+                  Add-DnsClientDohServerAddress -ServerAddress $ip -DohTemplate "https://dns.quad9.net/dns-query" -AutoUpgrade $true -AllowFallbackToUdp $true -ErrorAction SilentlyContinue
+              } elseif ($ip -eq "94.140.14.14" -or $ip -eq "94.140.15.15") {
+                  Add-DnsClientDohServerAddress -ServerAddress $ip -DohTemplate "https://dns.adguard-dns.com/dns-query" -AutoUpgrade $true -AllowFallbackToUdp $true -ErrorAction SilentlyContinue
+              }
+          } else {
+              if (Test-Path $regPath) {
+                  Remove-Item -Path $regPath -Recurse -Force | Out-Null
+              }
+          }
+      }
+      Clear-DnsClientCache
+    `
+    const innerBase64 = Buffer.from(innerScript, 'utf16le').toString('base64')
+    const script = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
+
+    try {
+      await runPowerShellScript(script)
+      return { success: true }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: 'Nie udało się skonfigurować DNS-over-HTTPS. Upewnij się, że zaakceptowałeś monit administratora (UAC).'
+      }
+    }
+  })
+
+  // 11. Pobieranie zabezpieczeń sieciowych (LLMNR, NetBIOS)
+  ipcMain.handle('get-network-hardening', async () => {
+    const script = `
+      # Sprawdź LLMNR
+      $llmnrPath = "HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient"
+      $llmnrDisabled = $false
+      if (Test-Path $llmnrPath) {
+          $val = Get-ItemPropertyValue -Path $llmnrPath -Name "EnableMulticast" -ErrorAction SilentlyContinue
+          if ($val -eq 0) {
+              $llmnrDisabled = $true
+          }
+      }
+
+      # Sprawdź NetBIOS
+      $activeNetbios = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
+      $netbiosDisabled = $true
+      if ($activeNetbios) {
+          foreach ($config in $activeNetbios) {
+              if ($config.NetbiosOptions -ne 2) {
+                  $netbiosDisabled = $false
+              }
+          }
+      } else {
+          $netbiosDisabled = $false
+      }
+
+      [PSCustomObject]@{
+          llmnrDisabled = $llmnrDisabled
+          netbiosDisabled = $netbiosDisabled
+      } | ConvertTo-Json
+    `
+    try {
+      const stdout = await runPowerShellScript(script)
+      if (!stdout || stdout.trim() === '') {
+        return { success: true, data: { llmnrDisabled: false, netbiosDisabled: false } }
+      }
+      return { success: true, data: JSON.parse(stdout.trim()) }
+    } catch (error: any) {
+      return { success: false, error: error.message, data: { llmnrDisabled: false, netbiosDisabled: false } }
+    }
+  })
+
+  // 12. Przełączanie zabezpieczeń sieciowych (LLMNR, NetBIOS) (wymaga UAC)
+  ipcMain.handle('toggle-network-hardening', async (_, key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) => {
+    let innerScript = ''
+    if (key === 'llmnrDisabled') {
+      innerScript = `
+        $path = "HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient"
+        if ($${enabled ? 'true' : 'false'}) {
+            if (!(Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+            }
+            New-ItemProperty -Path $path -Name "EnableMulticast" -Value 0 -PropertyType DWORD -Force | Out-Null
+        } else {
+            if (Test-Path $path) {
+                Remove-ItemProperty -Path $path -Name "EnableMulticast" -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+      `
+    } else if (key === 'netbiosDisabled') {
+      const val = enabled ? 2 : 0
+      innerScript = `
+        Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true } | ForEach-Object {
+            $_.SetTCPIPNetBIOS(${val}) | Out-Null
+        }
+      `
+    } else {
+      return { success: false, error: 'Nieznana reguła zabezpieczeń sieci.' }
+    }
+
+    const innerBase64 = Buffer.from(innerScript, 'utf16le').toString('base64')
+    const script = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
+
+    try {
+      await runPowerShellScript(script)
+      return { success: true }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: 'Nie udało się zmienić zabezpieczeń sieciowych. Upewnij się, że zaakceptowałeś monit administratora (UAC).'
+      }
+    }
+  })
 }

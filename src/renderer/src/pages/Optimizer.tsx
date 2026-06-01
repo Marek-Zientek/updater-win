@@ -12,7 +12,9 @@ import {
   Shield,
   Plus,
   Gamepad2,
-  X
+  X,
+  Search,
+  Sliders
 } from 'lucide-react'
 
 interface StartupApp {
@@ -30,7 +32,19 @@ interface CleanupStats {
 }
 
 export function Optimizer() {
-  const [activeTab, setActiveTab] = useState<'cleanup' | 'startup' | 'privacy' | 'gamebooster'>('cleanup')
+  const [activeTab, setActiveTab] = useState<'cleanup' | 'startup' | 'services' | 'privacy' | 'security' | 'gamebooster'>('cleanup')
+
+  // Stany dla Usług Systemowych
+  const [systemServices, setSystemServices] = useState<any[]>([])
+  const [loadingServices, setLoadingServices] = useState(false)
+  const [togglingService, setTogglingService] = useState<string | null>(null)
+  const [servicesFilter, setServicesFilter] = useState<'all' | 'curated' | 'telemetry' | 'performance' | 'gaming' | 'security'>('curated')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Stany dla Analizatora Dysku
+  const [diskSpaceData, setDiskSpaceData] = useState<any>(null)
+  const [scanningDisk, setScanningDisk] = useState(false)
+  const [deletingFile, setDeletingFile] = useState<string | null>(null)
 
   // Stany dla Czyszczenia Dysku
   const [cleanupStats, setCleanupStats] = useState<CleanupStats>({
@@ -57,6 +71,16 @@ export function Optimizer() {
   })
   const [loadingPrivacy, setLoadingPrivacy] = useState(false)
   const [togglingPrivacyKey, setTogglingPrivacyKey] = useState<string | null>(null)
+
+  // Stany dla Hardeningu i Bezpieczeństwa
+  const [hardeningSettings, setHardeningSettings] = useState({
+    rdpDisabled: true,
+    adminSharesDisabled: true,
+    spoolerDisabled: true,
+    defenderOptimized: true
+  })
+  const [loadingHardening, setLoadingHardening] = useState(false)
+  const [togglingHardeningKey, setTogglingHardeningKey] = useState<string | null>(null)
   const [creatingRestorePoint, setCreatingRestorePoint] = useState(false)
   const [restorePointStatus, setRestorePointStatus] = useState('')
   const [gameBoosterActive, setGameBoosterActive] = useState(false)
@@ -93,6 +117,41 @@ export function Optimizer() {
       setTimeout(() => setCleanedBytes(null), 4000)
     }
     setCleaning(false)
+  }
+
+  const handleScanDiskSpace = async () => {
+    setScanningDisk(true)
+    const res = await window.api.scanDiskSpace()
+    if (res.success && res.data) {
+      setDiskSpaceData(res.data)
+    } else {
+      alert(res.error || 'Wystąpił błąd podczas skanowania dysku.')
+    }
+    setScanningDisk(false)
+  }
+
+  const handleDeleteFile = async (filePath: string) => {
+    if (!confirm(`Czy na pewno chcesz trwale usunąć ten plik?\n${filePath}`)) return
+    setDeletingFile(filePath)
+    const res = await window.api.deleteFileDiagnostics(filePath)
+    if (res.success) {
+      setDiskSpaceData((prev: any) => {
+        if (!prev) return null
+        const updatedLarge = prev.largeFiles.filter((f: any) => f.path !== filePath)
+        const updatedDups = prev.duplicates.map((group: any) => ({
+          ...group,
+          files: group.files.filter((f: any) => f.path !== filePath)
+        })).filter((group: any) => group.files.length > 1)
+        return {
+          ...prev,
+          largeFiles: updatedLarge,
+          duplicates: updatedDups
+        }
+      })
+    } else {
+      alert(res.error || 'Nie udało się usunąć pliku. Może być zablokowany.')
+    }
+    setDeletingFile(null)
   }
 
   const loadStartupApps = async () => {
@@ -155,9 +214,46 @@ export function Optimizer() {
     }
     setTogglingPrivacyKey(null)
   }
+  const loadHardeningSettings = async () => {
+    setLoadingHardening(true)
+    const res = await window.api.getHardeningSettings()
+    if (res.success && res.data) {
+      setHardeningSettings(res.data)
+    }
+    setLoadingHardening(false)
+  }
 
+  const handleToggleHardening = async (key: string, currentValue: boolean) => {
+    setTogglingHardeningKey(key)
+    const nextState = !currentValue
 
+    try {
+      const autoRestoreRes = await window.api.getSetting('auto_restore_point', 'true')
+      if (autoRestoreRes.value === 'true') {
+        setCreatingRestorePoint(true)
+        setRestorePointStatus('Inicjowanie punktu przywracania... Zaakceptuj monit administratora (UAC) na pasku zadań.')
+        const rpRes = await window.api.createRestorePoint()
+        if (!rpRes.success) {
+          alert(rpRes.error || 'Nie udało się utworzyć punktu przywracania systemu Windows.')
+          setCreatingRestorePoint(false)
+          setTogglingHardeningKey(null)
+          return
+        }
+      }
+    } catch (err) {
+      console.error('Błąd punktu przywracania:', err)
+    } finally {
+      setCreatingRestorePoint(false)
+    }
 
+    const res = await window.api.toggleHardeningSetting(key, nextState)
+    if (res.success) {
+      setHardeningSettings((prev) => ({ ...prev, [key]: nextState }))
+    } else {
+      alert(`Błąd: ${res.error}`)
+    }
+    setTogglingHardeningKey(null)
+  }
   const handleToggleGameBooster = async () => {
     setTogglingGameBooster(true)
     const nextState = !gameBoosterActive
@@ -266,13 +362,66 @@ export function Optimizer() {
     }
   }
 
+  const loadSystemServices = async () => {
+    setLoadingServices(true)
+    const res = await window.api.getSystemServices()
+    if (res.success && res.data) {
+      setSystemServices(res.data)
+    }
+    setLoadingServices(false)
+  }
+
+  const handleToggleService = async (serviceName: string, action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled') => {
+    setTogglingService(serviceName)
+    const res = await window.api.toggleSystemService(serviceName, action)
+    if (res.success) {
+      await loadSystemServices()
+    } else {
+      alert(res.error || 'Nie udało się zmienić stanu usługi.')
+    }
+    setTogglingService(null)
+  }
+
+  const handleOptimizeAllServices = async () => {
+    setLoadingServices(true)
+    const optimizable = systemServices.filter(s => s.isCurated && s.startupType !== s.recommended)
+    
+    if (optimizable.length === 0) {
+      alert('Wszystkie usługi systemowe są już w stanie optymalnym.')
+      setLoadingServices(false)
+      return
+    }
+
+    let elevatedNeeded = false
+    for (const service of optimizable) {
+      const action = service.recommended === 'disable' ? 'disabled' : (service.recommended === 'manual' ? 'manual' : 'automatic')
+      const stopFirst = (action === 'disabled' || action === 'manual') && service.status === 'running'
+      
+      if (stopFirst) {
+        await window.api.toggleSystemService(service.name, 'stop')
+      }
+      const res = await window.api.toggleSystemService(service.name, action)
+      if (res.success && res.elevated) {
+        elevatedNeeded = true
+      }
+    }
+    
+    await loadSystemServices()
+    alert(elevatedNeeded ? 'Optymalizacja ukończona. Niektóre zmiany mogły wymagać potwierdzenia UAC.' : 'Wszystkie usługi zostały zoptymalizowane pomyślnie!')
+    setLoadingServices(false)
+  }
+
   useEffect(() => {
     if (activeTab === 'cleanup') {
       loadCleanupStats()
     } else if (activeTab === 'startup') {
       loadStartupApps()
+    } else if (activeTab === 'services') {
+      loadSystemServices()
     } else if (activeTab === 'privacy') {
       loadPrivacySettings()
+    } else if (activeTab === 'security') {
+      loadHardeningSettings()
     }
   }, [activeTab])
 
@@ -303,6 +452,202 @@ export function Optimizer() {
 
   const totalJunkBytes = cleanupStats.tempSize + cleanupStats.logSize + cleanupStats.cacheSize
   const formattedTotal = formatBytes(totalJunkBytes)
+
+  const renderServices = () => {
+    const filtered = systemServices.filter((s) => {
+      const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            s.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            s.description.toLowerCase().includes(searchQuery.toLowerCase())
+      
+      if (!matchesSearch) return false
+
+      if (servicesFilter === 'all') return true
+      if (servicesFilter === 'curated') return s.isCurated
+      return s.category === servicesFilter
+    })
+
+    return (
+      <div className="glass-panel fade-in" style={{ padding: '24px', borderRadius: '24px' }}>
+        <div className="flex justify-between items-center mb-lg" style={{ marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h3 className="flex items-center gap-sm" style={{ fontSize: '18px', margin: 0 }}>
+              <Sliders size={20} style={{ color: 'var(--color-primary)' }} />
+              Menedżer Usług Systemowych Windows
+            </h3>
+            <p className="text-muted text-xs mt-xs">
+              Wyłącz zbędne usługi w tle, aby uwalniać RAM i zasoby CPU.
+            </p>
+          </div>
+          
+          <div className="flex gap-sm">
+            <button
+              className="btn btn-secondary flex items-center gap-xs"
+              onClick={loadSystemServices}
+              disabled={loadingServices}
+              style={{ padding: '8px 14px', borderRadius: '10px' }}
+            >
+              <RefreshCw size={14} className={loadingServices ? 'spin' : ''} />
+              <span>Odśwież</span>
+            </button>
+            
+            <button
+              className="btn btn-primary flex items-center gap-xs"
+              onClick={handleOptimizeAllServices}
+              disabled={loadingServices || systemServices.length === 0}
+              style={{ padding: '8px 14px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--color-primary), #0072ff)', color: '#000', fontWeight: 700 }}
+            >
+              <Zap size={14} />
+              <span>Optymalizacja Usług</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div className="flex gap-md mb-lg" style={{ marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Search box */}
+          <div className="flex items-center" style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '8px 12px', minWidth: '200px' }}>
+            <Search size={16} className="text-muted mr-2" />
+            <input
+              type="text"
+              placeholder="Szukaj usługi po nazwie lub opisie..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '13px', outline: 'none', width: '100%' }}
+            />
+          </div>
+
+          {/* Category Buttons */}
+          <div className="flex gap-xs" style={{ flexWrap: 'wrap' }}>
+            <button
+              className={`btn`}
+              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', background: servicesFilter === 'curated' ? 'rgba(69, 243, 255, 0.15)' : 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: servicesFilter === 'curated' ? 'var(--color-primary)' : 'var(--color-text-secondary)', cursor: 'pointer' }}
+              onClick={() => setServicesFilter('curated')}
+            >
+              Zalecane
+            </button>
+            <button
+              className={`btn`}
+              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', background: servicesFilter === 'telemetry' ? 'rgba(69, 243, 255, 0.15)' : 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: servicesFilter === 'telemetry' ? 'var(--color-primary)' : 'var(--color-text-secondary)', cursor: 'pointer' }}
+              onClick={() => setServicesFilter('telemetry')}
+            >
+              Telemetria
+            </button>
+            <button
+              className={`btn`}
+              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', background: servicesFilter === 'performance' ? 'rgba(69, 243, 255, 0.15)' : 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: servicesFilter === 'performance' ? 'var(--color-primary)' : 'var(--color-text-secondary)', cursor: 'pointer' }}
+              onClick={() => setServicesFilter('performance')}
+            >
+              Wydajność
+            </button>
+            <button
+              className={`btn`}
+              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', background: servicesFilter === 'gaming' ? 'rgba(69, 243, 255, 0.15)' : 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: servicesFilter === 'gaming' ? 'var(--color-primary)' : 'var(--color-text-secondary)', cursor: 'pointer' }}
+              onClick={() => setServicesFilter('gaming')}
+            >
+              Gry
+            </button>
+            <button
+              className={`btn`}
+              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', background: servicesFilter === 'all' ? 'rgba(69, 243, 255, 0.15)' : 'transparent', border: '1px solid rgba(255, 255, 255, 0.08)', color: servicesFilter === 'all' ? 'var(--color-primary)' : 'var(--color-text-secondary)', cursor: 'pointer' }}
+              onClick={() => setServicesFilter('all')}
+            >
+              Wszystkie
+            </button>
+          </div>
+        </div>
+
+        {loadingServices ? (
+          <div className="flex flex-col items-center justify-center py-xl" style={{ gap: '16px' }}>
+            <div className="loader-spin"></div>
+            <span className="text-muted text-sm">Wczytywanie usług systemowych...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-xl text-center" style={{ gap: '12px' }}>
+            <Info size={48} className="text-muted opacity-40 animate-pulse" />
+            <p className="text-muted font-medium">Nie znaleziono usług</p>
+            <p className="text-xs text-muted max-w-[400px]">
+              Żadna usługa nie pasuje do wybranego filtru lub wyszukiwania.
+            </p>
+          </div>
+        ) : (
+          <div className="startup-list" style={{ maxHeight: '480px', overflowY: 'auto', paddingRight: '8px' }}>
+            {filtered.map((service, i) => (
+              <div key={i} className="startup-card glass-panel flex items-center justify-between" style={{ padding: '16px', gap: '16px' }}>
+                <div className="flex-1 min-w-0 pr-lg">
+                  <div className="flex items-center gap-md mb-xs" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                    <h4 className="startup-name truncate" title={service.displayName || service.name} style={{ fontSize: '14px', margin: 0 }}>
+                      {service.displayName || service.name}
+                    </h4>
+                    <span className="text-[10px] text-muted font-mono" style={{ background: 'rgba(255,255,255,0.03)', padding: '2px 6px', borderRadius: '4px' }}>{service.name}</span>
+                    
+                    <span className={`status-badge ${service.status === 'running' ? 'active' : 'disabled'}`}>
+                      {service.status === 'running' ? 'Działa' : 'Zatrzymana'}
+                    </span>
+                    
+                    {service.isCurated && (
+                      <span className="status-badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                        Zalecane: {service.recommended === 'disable' ? 'Wyłącz' : (service.recommended === 'manual' ? 'Ręczna' : 'Włącz')}
+                      </span>
+                    )}
+                    
+                    {service.category !== 'other' && (
+                      <span className="status-badge" style={{ background: service.category === 'telemetry' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)', color: service.category === 'telemetry' ? '#ef4444' : '#4ade80' }}>
+                        {service.category === 'telemetry' ? 'Telemetria' : (service.category === 'performance' ? 'Wydajność' : (service.category === 'gaming' ? 'Gry' : 'Bezpieczeństwo'))}
+                      </span>
+                    )}
+                  </div>
+                  <p className="startup-cmd truncate text-xs text-muted" title={service.description} style={{ margin: '4px 0 0 0' }}>
+                    {service.description || 'Brak opisu usługi systemowej.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-md" style={{ flexShrink: 0 }}>
+                  <div className="flex items-center gap-sm">
+                    <select
+                      value={service.startupType}
+                      disabled={togglingService === service.name}
+                      onChange={(e) => handleToggleService(service.name, e.target.value as any)}
+                      style={{
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '12px',
+                        padding: '6px 12px',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="automatic">Automatyczny</option>
+                      <option value="manual">Ręczny</option>
+                      <option value="disabled">Wyłączony</option>
+                    </select>
+
+                    <button
+                      className="btn"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        background: service.status === 'running' ? 'rgba(255,255,255,0.05)' : 'var(--color-primary)',
+                        color: service.status === 'running' ? '#fff' : '#000',
+                        cursor: 'pointer'
+                      }}
+                      disabled={togglingService === service.name || service.startupType === 'disabled'}
+                      onClick={() => handleToggleService(service.name, service.status === 'running' ? 'stop' : 'start')}
+                    >
+                      {togglingService === service.name ? '...' : (service.status === 'running' ? 'Zatrzymaj' : 'Uruchom')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="optimizer-container fade-in">
@@ -443,10 +788,22 @@ export function Optimizer() {
             Programy Startowe
           </button>
           <button
+            className={`tab-btn ${activeTab === 'services' ? 'active-services' : ''}`}
+            onClick={() => setActiveTab('services')}
+          >
+            Usługi Systemowe
+          </button>
+          <button
             className={`tab-btn ${activeTab === 'privacy' ? 'active-privacy' : ''}`}
             onClick={() => setActiveTab('privacy')}
           >
             Prywatność
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'security' ? 'active-privacy' : ''}`}
+            onClick={() => setActiveTab('security')}
+          >
+            Hardening & Bezpieczeństwo
           </button>
           <button
             className={`tab-btn ${activeTab === 'gamebooster' ? 'active-gamebooster' : ''}`}
@@ -555,6 +912,174 @@ export function Optimizer() {
               <span className="detail-size">{formatBytes(cleanupStats.cacheSize)}</span>
             </div>
           </div>
+
+          {/* Analizator Przestrzeni Dyskowej */}
+          <div className="glass-panel" style={{ padding: '28px', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="flex justify-between items-center" style={{ flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <h3 className="flex items-center gap-sm font-outfit uppercase tracking-wider" style={{ fontSize: '16px', margin: 0, fontWeight: 800 }}>
+                  <HardDrive size={18} style={{ color: 'var(--color-primary)' }} />
+                  Analizator Przestrzeni Dyskowej (Foldery Użytkownika)
+                </h3>
+                <p className="text-muted text-xs mt-xs">
+                  Skanuj folder domowy w poszukiwaniu dużych plików (&gt;50MB) oraz powtarzających się duplikatów.
+                </p>
+              </div>
+
+              <button
+                className="btn btn-primary flex items-center gap-xs"
+                onClick={handleScanDiskSpace}
+                disabled={scanningDisk}
+                style={{ padding: '8px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--color-primary), #0072ff)', color: '#000', fontWeight: 700 }}
+              >
+                {scanningDisk ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-black border-t-transparent mr-1" />
+                    <span>Skanowanie...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={14} />
+                    <span>Skanuj Przestrzeń</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {diskSpaceData ? (
+              <div className="flex flex-col gap-lg fade-in">
+                {/* Visual Segmented Partition Bar */}
+                <div>
+                  <h4 style={{ fontSize: '13px', color: '#fff', fontWeight: 700, margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>Wizualny Podział Typów Plików</h4>
+                  <div style={{ height: '24px', width: '100%', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {(() => {
+                      const total = Object.values(diskSpaceData.categorySizes).reduce((acc: number, val: any) => acc + val, 0) as number
+                      if (total === 0) return <div style={{ width: '100%', color: 'var(--color-text-muted)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Brak zeskanowanych plików</div>
+
+                      const categories = [
+                        { name: 'Wideo', key: 'video', color: '#f43f5e' },
+                        { name: 'Audio', key: 'audio', color: '#10b981' },
+                        { name: 'Dokumenty', key: 'document', color: '#3b82f6' },
+                        { name: 'Systemowe', key: 'system', color: '#a855f7' },
+                        { name: 'Inne', key: 'other', color: '#9ca3af' }
+                      ]
+
+                      return categories.map((cat) => {
+                        const size = diskSpaceData.categorySizes[cat.key] || 0
+                        const pct = (size / total) * 100
+                        if (pct < 1) return null
+                        return (
+                          <div
+                            key={cat.key}
+                            style={{ width: `${pct}%`, background: cat.color, height: '100%', transition: 'all 0.3s ease' }}
+                            title={`${cat.name}: ${formatBytes(size)} (${pct.toFixed(1)}%)`}
+                          />
+                        )
+                      })
+                    })()}
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="flex gap-md mt-sm" style={{ flexWrap: 'wrap', gap: '16px', marginTop: '12px' }}>
+                    {[
+                      { name: 'Wideo', key: 'video', color: '#f43f5e' },
+                      { name: 'Audio', key: 'audio', color: '#10b981' },
+                      { name: 'Dokumenty', key: 'document', color: '#3b82f6' },
+                      { name: 'Systemowe', key: 'system', color: '#a855f7' },
+                      { name: 'Inne', key: 'other', color: '#9ca3af' }
+                    ].map((cat) => {
+                      const size = diskSpaceData.categorySizes[cat.key] || 0
+                      return (
+                        <div key={cat.key} className="flex items-center gap-xs text-xs">
+                          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: cat.color }} />
+                          <span className="text-white/80">{cat.name}:</span>
+                          <strong className="text-white">{formatBytes(size)}</strong>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg" style={{ display: 'grid', gap: '24px' }}>
+                  {/* Left subcolumn: Top Large Files */}
+                  <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <h4 style={{ fontSize: '13px', color: '#fff', fontWeight: 800, margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>Największe Pliki (&gt;50MB)</h4>
+                    {diskSpaceData.largeFiles.length === 0 ? (
+                      <p className="text-muted text-xs">Brak plików spełniających kryteria.</p>
+                    ) : (
+                      <div className="custom-scrollbar" style={{ maxHeight: '450px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '6px' }}>
+                        {diskSpaceData.largeFiles.map((file: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between p-sm glass-panel" style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '10px', gap: '12px' }}>
+                            <div className="min-w-0 flex-1 pr-md">
+                              <span className="text-xs text-white font-semibold truncate block" title={file.name}>{file.name}</span>
+                              <span className="text-[10px] text-muted truncate block" title={file.path} style={{ marginTop: '2px' }}>{file.path}</span>
+                            </div>
+                            <div className="flex items-center gap-md" style={{ flexShrink: 0 }}>
+                              <strong className="text-xs font-outfit" style={{ color: 'var(--color-primary)' }}>{formatBytes(file.size)}</strong>
+                              <button
+                                className="btn btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '6px', color: '#ff4d4d', borderColor: 'rgba(255,77,77,0.2)', cursor: 'pointer' }}
+                                disabled={deletingFile === file.path}
+                                onClick={() => handleDeleteFile(file.path)}
+                              >
+                                {deletingFile === file.path ? '...' : 'Usuń'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right subcolumn: Duplicate Groups */}
+                  <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <h4 style={{ fontSize: '13px', color: '#fff', fontWeight: 800, margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>Znalezione Duplikaty</h4>
+                    {diskSpaceData.duplicates.length === 0 ? (
+                      <p className="text-muted text-xs">Brak powtarzających się grup plików.</p>
+                    ) : (
+                      <div className="custom-scrollbar" style={{ maxHeight: '450px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', paddingRight: '6px' }}>
+                        {diskSpaceData.duplicates.map((group: any, groupIdx: number) => {
+                          const singleSize = group.files[0].size
+                          const saving = singleSize * (group.files.length - 1)
+                          return (
+                            <div key={groupIdx} className="p-sm rounded-xl border border-white/5 bg-white/5" style={{ padding: '12px' }}>
+                              <div className="flex justify-between items-center mb-sm border-b border-white/5 pb-2" style={{ marginBottom: '8px' }}>
+                                <span className="text-xs text-white font-bold truncate flex-1 mr-2">{group.files[0].name}</span>
+                                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full" title="Maksymalny odzysk po usunięciu kopii">
+                                  Odzysk: {formatBytes(saving)}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {group.files.map((file: any, fileIdx: number) => (
+                                  <div key={fileIdx} className="flex justify-between items-center text-[11px]" style={{ gap: '12px' }}>
+                                    <span className="text-muted truncate flex-1" title={file.path}>{file.path}</span>
+                                    <button
+                                      className="text-red-400 hover:text-red-300 font-bold"
+                                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px', outline: 'none' }}
+                                      disabled={deletingFile === file.path}
+                                      onClick={() => handleDeleteFile(file.path)}
+                                    >
+                                      {deletingFile === file.path ? '...' : 'Usuń kopię'}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              !scanningDisk && (
+                <div className="text-center py-lg border border-dashed border-white/10 rounded-xl" style={{ padding: '24px' }}>
+                  <p className="text-muted text-xs m-0">Zalecamy uruchomienie skanowania w celu zidentyfikowania plików zajmujących najwięcej miejsca oraz ich duplikatów.</p>
+                </div>
+              )
+            )}
+          </div>
         </div>
       ) : activeTab === 'startup' ? (
         /* Panel Programów Startowych */
@@ -623,6 +1148,9 @@ export function Optimizer() {
             </div>
           )}
         </div>
+      ) : activeTab === 'services' ? (
+        /* Panel Usług Systemowych */
+        renderServices()
       ) : activeTab === 'privacy' ? (
         /* Panel Prywatności i Telemetrii */
         <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px' }}>
@@ -788,6 +1316,150 @@ export function Optimizer() {
                       checked={privacySettings.hostsTelemetry}
                       disabled={togglingPrivacyKey === 'hostsTelemetry'}
                       onChange={() => handleTogglePrivacy('hostsTelemetry', privacySettings.hostsTelemetry)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : activeTab === 'security' ? (
+        /* Panel Hardeningu & Bezpieczeństwa */
+        <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px' }}>
+          <div className="flex justify-between items-center mb-lg" style={{ marginBottom: '20px' }}>
+            <h3 className="flex items-center gap-sm" style={{ fontSize: '18px', margin: 0 }}>
+              <Shield size={20} style={{ color: 'var(--color-primary)' }} />
+              Hardening & Bezpieczeństwo Systemu
+            </h3>
+            <button
+              className="btn btn-secondary flex items-center gap-xs"
+              onClick={loadHardeningSettings}
+              disabled={loadingHardening}
+              style={{ padding: '8px 14px', borderRadius: '10px' }}
+            >
+              <RefreshCw size={14} className={loadingHardening ? 'spin' : ''} />
+              <span>Odśwież stan</span>
+            </button>
+          </div>
+
+          {loadingHardening ? (
+            <div className="flex flex-col items-center justify-center py-xl" style={{ gap: '16px' }}>
+              <div className="loader-spin"></div>
+              <span className="text-muted text-sm">Sprawdzanie ustawień bezpieczeństwa...</span>
+            </div>
+          ) : (
+            <div className="startup-list">
+              {/* RDP Connection */}
+              <div className="startup-card glass-panel flex items-center justify-between">
+                <div className="flex-1 min-w-0 pr-lg">
+                  <div className="flex items-center gap-md mb-xs">
+                    <h4 className="startup-name truncate">Zdalny Pulpit (Remote Desktop / RDP)</h4>
+                    <span className={`status-badge ${hardeningSettings.rdpDisabled ? 'active' : 'disabled'}`}>
+                      {hardeningSettings.rdpDisabled ? 'Zoptymalizowano (Wyłączony)' : 'Aktywny (Brak optymalizacji)'}
+                    </span>
+                  </div>
+                  <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%' }}>
+                    Wyłącza usługę zdalnego pulpitu w celu zapobiegania nieautoryzowanemu dostępowi z zewnątrz.
+                  </p>
+                </div>
+                <div className="flex items-center gap-md">
+                  <span className="text-xs text-muted font-bold" style={{ color: hardeningSettings.rdpDisabled ? '#34d399' : 'var(--color-error)' }}>
+                    {hardeningSettings.rdpDisabled ? 'Zablokowany' : 'Włączony'}
+                  </span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={hardeningSettings.rdpDisabled}
+                      disabled={togglingHardeningKey === 'rdpDisabled'}
+                      onChange={() => handleToggleHardening('rdpDisabled', hardeningSettings.rdpDisabled)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Admin$ Shares */}
+              <div className="startup-card glass-panel flex items-center justify-between">
+                <div className="flex-1 min-w-0 pr-lg">
+                  <div className="flex items-center gap-md mb-xs">
+                    <h4 className="startup-name truncate">Udziały Administracyjne (Admin$ / IPC$)</h4>
+                    <span className={`status-badge ${hardeningSettings.adminSharesDisabled ? 'active' : 'disabled'}`}>
+                      {hardeningSettings.adminSharesDisabled ? 'Zoptymalizowano (Wyłączone)' : 'Aktywne (Brak optymalizacji)'}
+                    </span>
+                  </div>
+                  <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%' }}>
+                    Wyłącza domyślne administracyjne udziały sieciowe dysków twardych chroniąc przed robakami sieciowymi.
+                  </p>
+                </div>
+                <div className="flex items-center gap-md">
+                  <span className="text-xs text-muted font-bold" style={{ color: hardeningSettings.adminSharesDisabled ? '#34d399' : 'var(--color-error)' }}>
+                    {hardeningSettings.adminSharesDisabled ? 'Zablokowane' : 'Włączone'}
+                  </span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={hardeningSettings.adminSharesDisabled}
+                      disabled={togglingHardeningKey === 'adminSharesDisabled'}
+                      onChange={() => handleToggleHardening('adminSharesDisabled', hardeningSettings.adminSharesDisabled)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Printer Spooler */}
+              <div className="startup-card glass-panel flex items-center justify-between">
+                <div className="flex-1 min-w-0 pr-lg">
+                  <div className="flex items-center gap-md mb-xs">
+                    <h4 className="startup-name truncate">Bufor Wydruku (Printer Spooler)</h4>
+                    <span className={`status-badge ${hardeningSettings.spoolerDisabled ? 'active' : 'disabled'}`}>
+                      {hardeningSettings.spoolerDisabled ? 'Zoptymalizowano (Wyłączony)' : 'Aktywny (Brak optymalizacji)'}
+                    </span>
+                  </div>
+                  <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%' }}>
+                    Wyłącza bufor wydruku jeśli system nie używa drukarki fizycznej (zabezpieczenie przed podatnością PrintNightmare).
+                  </p>
+                </div>
+                <div className="flex items-center gap-md">
+                  <span className="text-xs text-muted font-bold" style={{ color: hardeningSettings.spoolerDisabled ? '#34d399' : 'var(--color-error)' }}>
+                    {hardeningSettings.spoolerDisabled ? 'Wyłączony' : 'Włączony'}
+                  </span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={hardeningSettings.spoolerDisabled}
+                      disabled={togglingHardeningKey === 'spoolerDisabled'}
+                      onChange={() => handleToggleHardening('spoolerDisabled', hardeningSettings.spoolerDisabled)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Defender night scans */}
+              <div className="startup-card glass-panel flex items-center justify-between">
+                <div className="flex-1 min-w-0 pr-lg">
+                  <div className="flex items-center gap-md mb-xs">
+                    <h4 className="startup-name truncate">Optymalizacja Windows Defender (Nocne skany)</h4>
+                    <span className={`status-badge ${hardeningSettings.defenderOptimized ? 'active' : 'disabled'}`}>
+                      {hardeningSettings.defenderOptimized ? 'Zoptymalizowano (Włączone)' : 'Brak optymalizacji'}
+                    </span>
+                  </div>
+                  <p className="startup-cmd truncate text-xs text-muted" style={{ fontFamily: 'inherit', maxWidth: '100%' }}>
+                    Włącza pełną ochronę PUA, wymusza przesyłanie próbek w tle i planuje codzienne skanowanie antywirusowe na godzinę 2:00 w nocy.
+                  </p>
+                </div>
+                <div className="flex items-center gap-md">
+                  <span className="text-xs text-muted font-bold" style={{ color: hardeningSettings.defenderOptimized ? '#34d399' : 'var(--color-error)' }}>
+                    {hardeningSettings.defenderOptimized ? 'Aktywne' : 'Nieaktywne'}
+                  </span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={hardeningSettings.defenderOptimized}
+                      disabled={togglingHardeningKey === 'defenderOptimized'}
+                      onChange={() => handleToggleHardening('defenderOptimized', hardeningSettings.defenderOptimized)}
                     />
                     <span className="slider"></span>
                   </label>
@@ -1132,6 +1804,13 @@ export function Optimizer() {
           border-color: var(--color-secondary);
           color: #b39ddb;
           box-shadow: 0 0 15px rgba(107, 78, 230, 0.15);
+        }
+
+        .tab-btn.active-services {
+          background: rgba(59, 130, 246, 0.1);
+          border-color: #3b82f6;
+          color: #60a5fa;
+          box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
         }
 
         .tab-btn.active-privacy {

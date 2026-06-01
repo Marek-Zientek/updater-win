@@ -21,19 +21,40 @@ Kompleksowe, nowoczesne i bezpieczne narzędzie do zarządzania aktualizacjami o
 * Dezaktywacja Cortany i wyszukiwarki Bing w menu Start, oraz blokada reklam i promowanych gier.
 * **DNS & Hosts Modifier**: Sieciowe blokowanie telemetrii Microsoft, Nvidia, Adobe na poziomie pliku `hosts`.
 * **Game Booster (Tryb Gry)**:
+  - Automatyczna detekcja uruchomienia procesów gier w tle (w tym skanowanie bibliotek Steam).
   - Aktywacja systemowego profilu zasilania **Najwyższa wydajność** (Ultimate Performance).
   - Obniżenie pingu poprzez optymalizację opóźnień sieciowych w rejestrze (wyłączenie algorytmu Nagle'a).
   - Tymczasowe wyłączanie zbędnych usług systemowych w tle (`SysMain`, `Spooler`) na czas grania, z automatycznym przywracaniem po wyłączeniu trybu gry.
+  - Optymalizacja procesowa: nakładanie maski koligacji wątków logicznych (**CPU Core Affinity**) w celu ograniczania gry wyłącznie do rdzeni wydajnościowych **P-Cores** (pomijając rdzenie E-Cores), co zapobiega mikroprzycięciom na procesorach hybrydowych Intel/AMD.
 
-### 4. 🧹 Głębokie Czyszczenie Dysku (Extended Disk Cleaner)
+### 4. 🧹 Głębokie Czyszczenie Dysku (Extended Disk Cleaner) & Harmonogram w Tle
 * Szybkie skanowanie i czyszczenie folderów tymczasowych (`Temp`), logów systemowych oraz pamięci podręcznej przeglądarek.
 * Czyszczenie katalogów `Prefetch` oraz bufora pobierania Windows Update (`SoftwareDistribution\Download`).
+* **Automatyczny Harmonogram Czyszczenia**: Skonfigurowana pętla w procesie głównym automatycznie oczyszczająca wybrane ścieżki i pliki tymczasowe w wybranym interwale (codziennie, co tydzień, co miesiąc).
 
-### 5. 🗑️ Inteligentny Deinstalator (Bloatware Leftover Remover)
-* Detekcja preinstalowanego oprogramowania bloatware Windows.
-* Automatyczne skanowanie i usuwanie pozostałości w rejestrze systemowym (`HKCU`) oraz katalogach `%localappdata%\Packages` po usuniętej aplikacji.
+### 5. 🗑️ Inteligentny Deinstalator i Leftovers Cleaner
+* Detekcja preinstalowanego oprogramowania bloatware Windows (UWP) oraz tradycyjnych aplikacji desktopowych (Win32).
+* **Leftovers Cleaner**: po pomyślnym odinstalowaniu aplikacji program automatycznie przeszukuje i proponuje usunięcie osieroconych plików w katalogach `AppData`, `Program Files`, `ProgramData` oraz kluczy rejestru systemowego (`HKCU` i `HKLM`) powiązanych z aplikacją i jej wydawcą.
+* Interaktywna checklista wykrytych pozostałości pozwalająca trwale i bezpiecznie oczyścić system.
 
-### 6. 💾 Automatyczna Kopia Zapasowa & Menedżer Przywracania
+### 6. 🔒 Bezpieczeństwo, Hardening Systemu & Sieci
+* **System Hardening**: Procedury PowerShell zabezpieczające komputer przed atakami sieciowymi poprzez blokadę zdalnego pulpitu (RDP), wyłączenie domyślnych udziałów administracyjnych (Admin$ i AutoShareWks) oraz wyłączenie podatnej usługi Bufora Wydruku (Print Spooler).
+* **Automatyzacja Windows Defender**: Harmonogramowanie pełnych skanów antywirusowych Defender w godzinach nocnych.
+* **DNS Hardening**: Zintegrowana konfiguracja **DNS-over-HTTPS (DoH)** dla kart sieciowych.
+* **Network Hardening**: Dezaktywacja przestarzałych protokołów rozgłoszeniowych **LLMNR** oraz **NetBIOS over TCP/IP** w celu zapobiegania atakom zatruwania nazw (np. mitm/Responder).
+
+### 7. 📊 Specyfikacja Sprzętowa, Sterowniki & Benchmark Hub
+* **Karta Specyfikacji Technicznej**: dynamiczne parsowanie internetowych baz danych (DuckDuckGo HTML parser) w celu pozyskania szczegółowej karty katalogowej podzespołów użytkownika (litografia, socket, TDP, data premiery, przepustowość pamięci GPU/RAM).
+* **Aktualizator Sterowników**: skanowanie sterowników w oparciu o identyfikatory sprzętowe (Hardware IDs) z bezobsługową instalacją aktualizacji w tle.
+* **Benchmark Hub**: jednowątkowe oraz wielowątkowe (Node.js worker threads) testy wydajności procesora (CPU), RAM oraz sekwencyjnego zapisu/odczytu dysków twardych.
+* **Globalny Ranking**: porównanie wyników benchmarków z wynikami innych użytkowników na świecie (wykresy rozkładu Gaussa, klasyfikacja centylowa) z integracją HTTPS online.
+
+### 8. ☁️ Chmurowy Ekosystem, Kopia Profilu & Telemetria
+* **Kopia profilu (Eksport/Import)**: łatwy eksport i import pełnego profilu konfiguracyjnego aplikacji wraz ze spersonalizowanymi nazwami/opisami programów do pliku JSON.
+* **Synchronizacja Chmurowa (Cloud Sync)**: automatyczna i ręczna synchronizacja konfiguracji użytkownika z chmurą za pośrednictwem mock API HTTPS.
+* **Telemetria diagnostyczna**: możliwość włączenia zanonimizowanego raportowania konfiguracji sprzętowej w celu wsparcia rozwoju projektu.
+
+### 9. 💾 Kopia Zapasowa & Menedżer Przywracania
 * Tworzenie punktów przywracania Windows przed wprowadzaniem modyfikacji w systemie.
 * Wbudowany **Menedżer Przywracania (Rollback Manager)** umożliwiający uruchomienie systemowego narzędzia przywracania bezpośrednio z poziomu aplikacji.
 

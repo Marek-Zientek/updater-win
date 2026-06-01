@@ -138,7 +138,13 @@ const api = {
     ipcRenderer.invoke('get-hardware-specsheet', type, modelName),
   getRemoteServerConfig: () => ipcRenderer.invoke('get-remote-server-config'),
   toggleRemoteServer: (enable: boolean, port: number) =>
-    ipcRenderer.invoke('toggle-remote-server', enable, port)
+    ipcRenderer.invoke('toggle-remote-server', enable, port),
+  diagnostics: {
+    startScan: (type: 'sfc' | 'dism' | 'audit') => ipcRenderer.invoke('start-diagnostics-scan', type),
+    getProgress: () => ipcRenderer.invoke('get-diagnostics-progress'),
+    cancelScan: () => ipcRenderer.invoke('cancel-diagnostics-scan'),
+    getBsodLogs: () => ipcRenderer.invoke('get-bsod-logs')
+  }
 }
 
 if (process.contextIsolated) {

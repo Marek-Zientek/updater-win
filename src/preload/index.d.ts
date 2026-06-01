@@ -142,6 +142,12 @@ export interface IHardwareAPI {
   getRemoteServerConfig: () => Promise<{ isRunning: boolean; port: number; pin: string; ips: string[] }>
   toggleRemoteServer: (enable: boolean, port: number) => Promise<{ success: boolean; error?: string }>
   auth: IAuthAPI
+  diagnostics: {
+    startScan: (type: 'sfc' | 'dism' | 'audit') => Promise<{ success: boolean; error?: string }>
+    getProgress: () => Promise<{ active: boolean; type: 'sfc' | 'dism' | 'audit' | null; progress: number; logs: string }>
+    cancelScan: () => Promise<{ success: boolean; error?: string }>
+    getBsodLogs: () => Promise<{ success: boolean; data: any[]; error?: string }>
+  }
 }
 
 declare global {

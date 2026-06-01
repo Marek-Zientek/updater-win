@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, Cpu, LogOut, Grid, Cpu as CpuIcon, Layers, Database, Fan, Zap, HardDrive, Info, Settings as SettingsIcon, BarChart2, Gauge, Trash2, Globe, Gamepad, Menu, X, ChevronLeft, ChevronRight, DownloadCloud } from 'lucide-react'
+import { LayoutDashboard, Package, Cpu, LogOut, Grid, Cpu as CpuIcon, Layers, Database, Fan, Zap, HardDrive, Info, Settings as SettingsIcon, BarChart2, Gauge, Trash2, Globe, Gamepad, Menu, X, ChevronLeft, ChevronRight, DownloadCloud, Activity } from 'lucide-react'
 
 export function Layout({ user, onLogout }: { user: any; onLogout: () => void }) {
   const location = useLocation()
@@ -48,6 +48,7 @@ export function Layout({ user, onLogout }: { user: any; onLogout: () => void }) 
     { to: '/network', label: 'Sieć', icon: <Globe size={20} /> },
     { to: '/peripherals', label: 'Urządzenia', icon: <Gamepad size={20} /> },
     { to: '/backup', label: 'Kopia zapasowa', icon: <Database size={20} /> },
+    { to: '/diagnostics', label: 'Diagnostyka', icon: <Activity size={20} /> },
     { to: '/settings', label: 'Ustawienia', icon: <SettingsIcon size={20} /> }
   ]
 

@@ -17,6 +17,7 @@ import { Network } from './pages/Network'
 import { Peripherals } from './pages/Peripherals'
 import { PerformanceHUD } from './pages/PerformanceHUD'
 import { MultiInstaller } from './pages/MultiInstaller'
+import Diagnostics from './pages/Diagnostics'
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="network" element={<Network />} />
           <Route path="peripherals" element={<Peripherals />} />
           <Route path="backup" element={<Backup />} />
+          <Route path="diagnostics" element={<Diagnostics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="multi-installer" element={<MultiInstaller />} />
         </Route>

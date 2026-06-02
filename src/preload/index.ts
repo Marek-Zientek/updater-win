@@ -144,6 +144,10 @@ const api = {
     getProgress: () => ipcRenderer.invoke('get-diagnostics-progress'),
     cancelScan: () => ipcRenderer.invoke('cancel-diagnostics-scan'),
     getBsodLogs: () => ipcRenderer.invoke('get-bsod-logs')
+  },
+  ram: {
+    getRamStats: () => ipcRenderer.invoke('get-ram-stats'),
+    cleanRam: (type: 'standby' | 'workingsets' | 'both') => ipcRenderer.invoke('clean-ram', type)
   }
 }
 

@@ -28,6 +28,7 @@ import { setupBloatwareIPC } from './ipc/bloatware'
 import { setupNetworkIPC } from './ipc/network'
 import { setupPeripheralsIPC } from './ipc/peripherals'
 import { setupDiagnosticsIPC } from './ipc/diagnostics'
+import { setupRamCleanerIPC } from './ipc/ramCleaner'
 import { initializeDatabase } from './db'
 import { startRemoteServer, stopRemoteServer, getRemoteServerStatus } from './remoteServer'
 
@@ -315,6 +316,7 @@ app.whenReady().then(async () => {
   setupNetworkIPC()
   setupPeripheralsIPC()
   setupDiagnosticsIPC()
+  setupRamCleanerIPC()
 
   // Zdalny Monitoring IPC
   ipcMain.handle('get-remote-server-config', async () => {

@@ -148,6 +148,10 @@ export interface IHardwareAPI {
     cancelScan: () => Promise<{ success: boolean; error?: string }>
     getBsodLogs: () => Promise<{ success: boolean; data: any[]; error?: string }>
   }
+  ram: {
+    getRamStats: () => Promise<{ total: number; free: number; standby: number; used: number }>
+    cleanRam: (type: 'standby' | 'workingsets' | 'both') => Promise<{ success: boolean; error?: string }>
+  }
 }
 
 declare global {

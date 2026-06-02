@@ -44,6 +44,7 @@ export function Layout({ user, onLogout }: { user: any; onLogout: () => void }) 
     { to: '/hardware', label: 'Sprzęt', icon: <Cpu size={20} />, subLinks: true },
     { to: '/performance', label: 'Wydajność', icon: <BarChart2 size={20} /> },
     { to: '/optimizer', label: 'Optymalizator', icon: <Gauge size={20} /> },
+    { to: '/ram-cleaner', label: 'Optymalizacja RAM', icon: <Layers size={20} /> },
     { to: '/bloatware', label: 'Bloatware', icon: <Trash2 size={20} /> },
     { to: '/network', label: 'Sieć', icon: <Globe size={20} /> },
     { to: '/peripherals', label: 'Urządzenia', icon: <Gamepad size={20} /> },

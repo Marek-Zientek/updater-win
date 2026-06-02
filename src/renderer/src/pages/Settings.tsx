@@ -15,7 +15,9 @@ import {
   Cloud,
   RefreshCw,
   Smartphone,
-  Network
+  Network,
+  Lock,
+  ShieldCheck
 } from 'lucide-react'
 
 export function Settings() {
@@ -1463,6 +1465,54 @@ export function Settings() {
               <Trash2 size={16} />
               {iconCacheCleared ? 'Wyczyszczono!' : 'Wyczyść cache'}
             </button>
+          </div>
+        </section>
+
+        {/* Sekcja: Bezpieczeństwo & Informacje Prawne */}
+        <section className="settings-section glass-panel">
+          <h3 className="section-title">
+            <Lock size={18} color="var(--color-primary)" />
+            Bezpieczeństwo & Informacje Prawne
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.6' }}>
+            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
+              <h4 style={{ margin: '0 0 8px 0', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                <ShieldCheck size={16} color="#10b981" />
+                Audyt Przechowywania Danych (Lokalna Baza)
+              </h4>
+              <p style={{ margin: 0 }}>
+                Aplikacja **UpdaterWindows** została zaprojektowana w architekturze <strong>Local-First</strong>. Wszystkie Twoje ustawienia, spersonalizowane listy oprogramowania oraz historia optymalizacji są zapisywane wyłącznie lokalnie w bazie danych SQLite (<code>database.db</code>) znajdującej się w Twoim katalogu profilu użytkownika (<code>AppData/Roaming</code>). Hasła do konta lokalnego są zabezpieczone przy użyciu kryptograficznej funkcji skrótu <strong>bcryptjs</strong> (koszt 10). Dane nie są nigdzie wysyłane automatycznie bez Twojej wyraźnej zgody.
+              </p>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
+              <h4 style={{ margin: '0 0 8px 0', color: 'white', fontSize: '13px' }}>Regulamin i Warunki Licencyjne</h4>
+              <p style={{ margin: '0 0 10px 0' }}>
+                Oprogramowanie jest licencjonowane na warunkach licencji <strong>MIT</strong>. Masz prawo do bezpłatnego korzystania, modyfikacji oraz dystrybucji kodu.
+              </p>
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+{`Copyright (c) 2026 Marek Zientek
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`}
+              </div>
+            </div>
           </div>
         </section>
       </div>

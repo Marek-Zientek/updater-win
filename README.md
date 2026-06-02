@@ -80,10 +80,13 @@ Kompleksowe, nowoczesne i bezpieczne narzędzie do zarządzania aktualizacjami o
 
 ## 📦 Jak wygenerować plik instalacyjny (.exe)?
 
+> [!IMPORTANT]
+> Środowisko **Node.js** oraz menedżer pakietów **npm** są wymagane **wyłącznie** do budowania, rozwoju (developmentu) oraz kompilowania aplikacji ze źródeł. Gotowy plik instalacyjny `.exe` (stworzony po skompilowaniu) jest w pełni samodzielny i **nie wymaga** obecności Node.js na komputerze użytkownika końcowego.
+
 Aplikacja wykorzystuje narzędzie **electron-builder** do pakowania kodu w samodzielną aplikację dla systemu Windows.
 
-### Krok 1: Wymagania wstępne
-Upewnij się, że masz zainstalowany program **Node.js** (zalecana wersja LTS) oraz zainstalowane wszystkie zależności projektowe:
+### Krok 1: Wymagania deweloperskie (Wstępne)
+Upewnij się, że masz zainstalowany program **Node.js** (zalecana wersja LTS) na maszynie deweloperskiej, a następnie zainstaluj wszystkie zależności projektowe:
 ```bash
 npm install
 ```

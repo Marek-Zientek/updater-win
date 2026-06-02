@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
   Sliders,
-  Play,
-  StopCircle,
   RefreshCw,
   Search,
   CheckCircle,
@@ -620,196 +618,223 @@ export default function ServicesManager(): React.ReactElement {
               Odczytywanie informacji o usługach systemowych...
             </div>
           ) : filteredServices.length > 0 ? (
-            <div style={{ overflowX: 'auto', maxHeight: '480px', overflowY: 'auto' }}>
-              <table
-                style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  fontSize: '12px',
-                  textAlign: 'left'
-                }}
-              >
-                <thead>
-                  <tr
+            <div
+              className="startup-list"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                maxHeight: '520px',
+                overflowY: 'auto',
+                paddingRight: '8px'
+              }}
+            >
+              {filteredServices.map((s, index) => {
+                const isTelemetryAction = actionInProgress?.startsWith(s.name)
+                const isRunning = s.status === 'running'
+
+                return (
+                  <div
+                    key={index}
+                    className="startup-card glass-panel flex items-center justify-between"
                     style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.05)',
-                      color: 'white',
-                      fontWeight: 600,
-                      position: 'sticky',
-                      top: 0,
-                      background: '#111318',
-                      zIndex: 1
+                      padding: '16px 20px',
+                      background: s.isCurated
+                        ? 'rgba(255, 255, 255, 0.015)'
+                        : 'rgba(255, 255, 255, 0.005)',
+                      border: s.isCurated
+                        ? '1px solid rgba(69, 243, 255, 0.15)'
+                        : '1px solid rgba(255, 255, 255, 0.05)',
+                      borderRadius: '16px',
+                      gap: '20px',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
                     }}
                   >
-                    <th style={{ padding: '12px 8px' }}>Nazwa wyświetlana</th>
-                    <th style={{ padding: '12px 8px' }}>Kategoria</th>
-                    <th style={{ padding: '12px 8px' }}>Bezpieczeństwo</th>
-                    <th style={{ padding: '12px 8px' }}>Stan</th>
-                    <th style={{ padding: '12px 8px' }}>Typ startu</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'right' }}>Działania</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredServices.map((s, index) => {
-                    const isTelemetryAction = actionInProgress?.startsWith(s.name)
-                    const isRunning = s.status === 'running'
-
-                    return (
-                      <tr
-                        key={index}
-                        style={{
-                          borderBottom: '1px solid rgba(255,255,255,0.02)',
-                          color: 'var(--color-text-muted)',
-                          background: s.isCurated ? 'rgba(255,255,255,0.01)' : 'transparent'
-                        }}
+                    <div className="flex-1 min-w-0 pr-lg">
+                      <div
+                        className="flex items-center"
+                        style={{ flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}
                       >
-                        <td style={{ padding: '12px 8px', maxWidth: '220px' }}>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              color: s.isCurated ? 'var(--color-primary)' : 'white',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                            title={s.displayName}
-                          >
-                            {s.displayName}
-                          </div>
-                          <div
+                        <h4
+                          className="startup-name truncate"
+                          title={s.displayName || s.name}
+                          style={{ fontSize: '15px', fontWeight: 600, color: 'white', margin: 0 }}
+                        >
+                          {s.displayName || s.name}
+                        </h4>
+                        <span
+                          className="text-[10px] text-muted font-mono"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            color: 'var(--color-text-muted)',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          {s.name}
+                        </span>
+
+                        <span
+                          className={`status-badge ${isRunning ? 'active' : 'disabled'}`}
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontWeight: 600,
+                            background: isRunning
+                              ? 'rgba(16, 185, 129, 0.15)'
+                              : 'rgba(255, 255, 255, 0.05)',
+                            color: isRunning ? '#4ade80' : 'var(--color-text-muted)',
+                            border: isRunning
+                              ? '1px solid rgba(16, 185, 129, 0.2)'
+                              : '1px solid rgba(255, 255, 255, 0.08)'
+                          }}
+                        >
+                          {isRunning ? 'Działa' : 'Zatrzymana'}
+                        </span>
+
+                        {s.isCurated && (
+                          <span
+                            className="status-badge"
                             style={{
                               fontSize: '10px',
-                              color: 'var(--color-text-muted)',
-                              fontFamily: 'monospace'
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontWeight: 600,
+                              background: 'rgba(168, 85, 247, 0.15)',
+                              color: '#c084fc',
+                              border: '1px solid rgba(168, 85, 247, 0.2)'
                             }}
                           >
-                            {s.name}
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px 8px' }}>
-                          <div
+                            Zalecane:{' '}
+                            {s.recommended === 'disable'
+                              ? 'Wyłącz'
+                              : s.recommended === 'manual'
+                                ? 'Ręczna'
+                                : 'Włącz'}
+                          </span>
+                        )}
+
+                        {s.category !== 'other' && (
+                          <span
+                            className="status-badge"
                             style={{
-                              display: 'flex',
+                              fontSize: '10px',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontWeight: 600,
+                              background:
+                                s.category === 'telemetry'
+                                  ? 'rgba(239, 68, 68, 0.15)'
+                                  : s.category === 'performance'
+                                    ? 'rgba(69, 243, 255, 0.15)'
+                                    : s.category === 'gaming'
+                                      ? 'rgba(245, 158, 11, 0.15)'
+                                      : 'rgba(16, 185, 129, 0.15)',
+                              color:
+                                s.category === 'telemetry'
+                                  ? '#ef4444'
+                                  : s.category === 'performance'
+                                    ? 'var(--color-primary)'
+                                    : s.category === 'gaming'
+                                      ? '#f59e0b'
+                                      : '#10b981',
+                              border: `1px solid ${
+                                s.category === 'telemetry'
+                                  ? 'rgba(239, 68, 68, 0.2)'
+                                  : s.category === 'performance'
+                                    ? 'rgba(69, 243, 255, 0.2)'
+                                    : s.category === 'gaming'
+                                      ? 'rgba(245, 158, 11, 0.2)'
+                                      : 'rgba(16, 185, 129, 0.2)'
+                              }`,
+                              display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              textTransform: 'capitalize',
-                              fontSize: '11px'
+                              gap: '4px'
                             }}
                           >
                             {getCategoryIcon(s.category)}
-                            {s.category}
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px 8px' }}>{getSafetyBadge(s.safety)}</td>
-                        <td style={{ padding: '12px 8px' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              color: isRunning ? '#10b981' : 'var(--color-text-muted)',
-                              fontWeight: isRunning ? 600 : 'normal'
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: '6px',
-                                height: '6px',
-                                borderRadius: '50%',
-                                background: isRunning ? '#10b981' : 'rgba(255,255,255,0.15)',
-                                display: 'inline-block'
-                              }}
-                            ></span>
-                            {isRunning ? 'Uruchomiona' : 'Zatrzymana'}
+                            {s.category === 'telemetry'
+                              ? 'Telemetria'
+                              : s.category === 'performance'
+                                ? 'Wydajność'
+                                : s.category === 'gaming'
+                                  ? 'Gry'
+                                  : 'Bezpieczeństwo'}
                           </span>
-                        </td>
-                        <td style={{ padding: '12px 8px' }}>
-                          <select
-                            value={s.startupType}
-                            disabled={isTelemetryAction}
-                            onChange={(e) =>
-                              handleServiceAction(
-                                s,
-                                e.target.value as 'automatic' | 'manual' | 'disabled'
-                              )
-                            }
-                            className="select-custom"
-                            style={{
-                              padding: '2px 6px',
-                              borderRadius: '6px',
-                              fontSize: '11px',
-                              background: 'rgba(0,0,0,0.15)'
-                            }}
-                          >
-                            <option value="automatic">Automatyczny</option>
-                            <option value="manual">Ręczny</option>
-                            <option value="disabled">Wyłączony</option>
-                          </select>
-                          {s.isCurated && (
-                            <div
-                              style={{
-                                fontSize: '9px',
-                                color:
-                                  s.recommended === 'disable'
-                                    ? '#ef4444'
-                                    : 'var(--color-secondary)',
-                                marginTop: '2px',
-                                fontWeight: 600
-                              }}
-                            >
-                              Zalecane:{' '}
-                              {s.recommended === 'disable'
-                                ? 'Wyłącz'
-                                : s.recommended === 'manual'
-                                  ? 'Ręczny'
-                                  : 'Włącz'}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                          {isRunning ? (
-                            <button
-                              disabled={isTelemetryAction}
-                              onClick={() => handleServiceAction(s, 'stop')}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#ef4444',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
-                              title="Zatrzymaj usługę"
-                            >
-                              <StopCircle size={16} />
-                            </button>
-                          ) : (
-                            <button
-                              disabled={isTelemetryAction}
-                              onClick={() => handleServiceAction(s, 'start')}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#10b981',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
-                              title="Uruchom usługę"
-                            >
-                              <Play size={16} />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                        )}
+
+                        {getSafetyBadge(s.safety)}
+                      </div>
+                      <p
+                        className="truncate text-xs text-muted"
+                        title={s.description}
+                        style={{
+                          margin: 0,
+                          color: 'var(--color-text-muted)',
+                          fontSize: '12px',
+                          lineHeight: '1.4'
+                        }}
+                      >
+                        {s.description || 'Brak opisu usługi systemowej.'}
+                      </p>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-md"
+                      style={{ flexShrink: 0, gap: '12px' }}
+                    >
+                      <select
+                        value={s.startupType}
+                        disabled={isTelemetryAction}
+                        onChange={(e) =>
+                          handleServiceAction(
+                            s,
+                            e.target.value as 'automatic' | 'manual' | 'disabled'
+                          )
+                        }
+                        className="select-custom"
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          color: '#fff',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="automatic">Automatyczny</option>
+                        <option value="manual">Ręczny</option>
+                        <option value="disabled">Wyłączony</option>
+                      </select>
+
+                      <button
+                        className="btn"
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '12px',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          background: isRunning
+                            ? 'rgba(255, 255, 255, 0.05)'
+                            : 'var(--color-primary)',
+                          color: isRunning ? '#fff' : '#000',
+                          border: isRunning ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                          cursor: isTelemetryAction ? 'not-allowed' : 'pointer',
+                          minWidth: '90px'
+                        }}
+                        disabled={isTelemetryAction || s.startupType === 'disabled'}
+                        onClick={() => handleServiceAction(s, isRunning ? 'stop' : 'start')}
+                      >
+                        {isTelemetryAction ? '...' : isRunning ? 'Zatrzymaj' : 'Uruchom'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>

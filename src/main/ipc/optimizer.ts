@@ -602,6 +602,7 @@ export function setupOptimizerIPC(): void {
   // 3. Pobieranie programów z autostartu (HKCU Run)
   ipcMain.handle('get-startup-apps', async () => {
     const psCommand = `
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
       $runKey = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
       $items = @()
       if (Test-Path $runKey) {
@@ -938,6 +939,7 @@ export function setupOptimizerIPC(): void {
     }
 
     const psCommand = `
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
       Get-CimInstance -ClassName Win32_Service | 
       Select-Object Name, DisplayName, State, StartMode, Description | 
       ConvertTo-Json -Compress
@@ -987,7 +989,7 @@ export function setupOptimizerIPC(): void {
         error
       )
       try {
-        const fallbackCmd = `Get-Service | Select-Object Name, DisplayName, Status, StartType | ConvertTo-Json -Compress`
+        const fallbackCmd = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Service | Select-Object Name, DisplayName, Status, StartType | ConvertTo-Json -Compress`
         const { stdout } = await execAsync(
           `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${fallbackCmd}"`
         )

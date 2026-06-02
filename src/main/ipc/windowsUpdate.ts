@@ -9,6 +9,7 @@ export function setupWindowsUpdateIPC(): void {
   ipcMain.handle('get-windows-update-status', async () => {
     return new Promise((resolve) => {
       const psCommand =
+        `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ` +
         `$path = 'HKLM:\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings'; ` +
         `$paused = $false; $expiry = ''; $start = ''; ` +
         `if (Test-Path $path) { ` +
@@ -126,6 +127,7 @@ if (Test-Path $path) {
   ipcMain.handle('get-windows-update-history', async () => {
     return new Promise((resolve) => {
       const psCommand =
+        `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ` +
         `$Session = New-Object -ComObject Microsoft.Update.Session; ` +
         `$Searcher = $Session.CreateUpdateSearcher(); ` +
         `$HistoryCount = $Searcher.GetTotalHistoryCount(); ` +

@@ -98,14 +98,17 @@ export function Network() {
     }
   }
 
-  const handleToggleHardening = async (key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) => {
+  const handleToggleHardening = async (
+    key: 'llmnrDisabled' | 'netbiosDisabled',
+    enabled: boolean
+  ) => {
     setLoadingHardening(true)
     appendLog(`Zmienianie ustawienia hardeningu sieci: ${key} na ${enabled}...`)
     const res = await window.api.toggleNetworkHardening(key, enabled)
     if (res.success) {
       showToast('Zmieniono ustawienia zabezpieczeń sieci!', 'success')
       appendLog(`Pomyślnie zmieniono ${key} na ${enabled}`)
-      setHardening(prev => ({ ...prev, [key]: enabled }))
+      setHardening((prev) => ({ ...prev, [key]: enabled }))
     } else {
       showToast(res.error || 'Błąd modyfikacji zabezpieczeń.', 'error')
       appendLog(`Błąd zmiany ${key}: ` + res.error)
@@ -115,7 +118,9 @@ export function Network() {
 
   const handleToggleDoh = async (interfaceGuid: string, dnsIps: string[], enable: boolean) => {
     setTogglingDoh(true)
-    appendLog(`Zmienianie statusu DNS-over-HTTPS (DoH) na ${enable} dla adaptera ${interfaceGuid}...`)
+    appendLog(
+      `Zmienianie statusu DNS-over-HTTPS (DoH) na ${enable} dla adaptera ${interfaceGuid}...`
+    )
     const res = await window.api.toggleDnsDoh(interfaceGuid, dnsIps, enable)
     if (res.success) {
       showToast(`Pomyślnie ${enable ? 'włączono' : 'wyłączono'} szyfrowanie DoH!`, 'success')
@@ -612,44 +617,101 @@ export function Network() {
 
               {/* DNS-over-HTTPS (DoH) panel */}
               {(() => {
-                const currentAdapterDoh = dohStatus.find(i => i.interfaceIndex === Number(selectedInterfaceIndex))
+                const currentAdapterDoh = dohStatus.find(
+                  (i) => i.interfaceIndex === Number(selectedInterfaceIndex)
+                )
                 return (
-                  <div className="glass-panel mt-md" style={{ padding: '16px', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', background: 'rgba(255,255,255,0.01)' }}>
+                  <div
+                    className="glass-panel mt-md"
+                    style={{
+                      padding: '16px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      borderRadius: '12px',
+                      background: 'rgba(255,255,255,0.01)'
+                    }}
+                  >
                     <div className="flex justify-between items-center mb-sm">
-                      <h3 className="flex items-center gap-xs text-xs font-bold uppercase text-white animate-fade-in" style={{ margin: 0 }}>
+                      <h3
+                        className="flex items-center gap-xs text-xs font-bold uppercase text-white animate-fade-in"
+                        style={{ margin: 0 }}
+                      >
                         <Globe size={14} className="text-primary" />
                         Szyfrowanie DNS-over-HTTPS (DoH)
                       </h3>
                     </div>
-                    
+
                     {!selectedInterfaceIndex ? (
-                      <p className="text-xs text-muted" style={{ margin: 0 }}>Wybierz kartę sieciową, aby skonfigurować szyfrowanie DNS.</p>
+                      <p className="text-xs text-muted" style={{ margin: 0 }}>
+                        Wybierz kartę sieciową, aby skonfigurować szyfrowanie DNS.
+                      </p>
                     ) : details && details.dhcp === 1 ? (
-                      <div style={{ background: 'rgba(251, 146, 60, 0.05)', border: '1px solid rgba(251, 146, 60, 0.15)', borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span className="text-[10px] font-bold text-warning uppercase">Wymagany Statyczny DNS</span>
-                        <p className="text-[11px] text-muted" style={{ margin: 0, lineHeight: 1.4 }}>
-                          Karta sieciowa pobiera DNS automatycznie (DHCP). Włącz jeden z gotowych profili DNS (np. Cloudflare lub Google) powyżej, aby móc aktywować szyfrowane połączenie DoH.
+                      <div
+                        style={{
+                          background: 'rgba(251, 146, 60, 0.05)',
+                          border: '1px solid rgba(251, 146, 60, 0.15)',
+                          borderRadius: '10px',
+                          padding: '10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}
+                      >
+                        <span className="text-[10px] font-bold text-warning uppercase">
+                          Wymagany Statyczny DNS
+                        </span>
+                        <p
+                          className="text-[11px] text-muted"
+                          style={{ margin: 0, lineHeight: 1.4 }}
+                        >
+                          Karta sieciowa pobiera DNS automatycznie (DHCP). Włącz jeden z gotowych
+                          profili DNS (np. Cloudflare lub Google) powyżej, aby móc aktywować
+                          szyfrowane połączenie DoH.
                         </p>
                       </div>
-                    ) : currentAdapterDoh && currentAdapterDoh.dns && currentAdapterDoh.dns.length > 0 ? (
+                    ) : currentAdapterDoh &&
+                      currentAdapterDoh.dns &&
+                      currentAdapterDoh.dns.length > 0 ? (
                       <div className="flex flex-col gap-sm">
-                        <p className="text-[11px] text-muted" style={{ margin: 0, lineHeight: 1.4 }}>
-                          Szyfruj zapytania DNS, aby uniemożliwić szpiegowanie odwiedzanych domen (DNS Spoofing) na poziomie sieci lokalnej i ISP.
+                        <p
+                          className="text-[11px] text-muted"
+                          style={{ margin: 0, lineHeight: 1.4 }}
+                        >
+                          Szyfruj zapytania DNS, aby uniemożliwić szpiegowanie odwiedzanych domen
+                          (DNS Spoofing) na poziomie sieci lokalnej i ISP.
                         </p>
-                        
+
                         <div className="flex flex-col gap-xs mt-xs">
                           {currentAdapterDoh.dns.map((dnsItem: any, idx: number) => (
-                            <div key={idx} className="flex justify-between items-center" style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                            <div
+                              key={idx}
+                              className="flex justify-between items-center"
+                              style={{
+                                background: 'rgba(255,255,255,0.02)',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255,255,255,0.03)'
+                              }}
+                            >
                               <div className="flex flex-col">
-                                <span className="text-xs font-bold font-mono text-white">{dnsItem.ip}</span>
+                                <span className="text-xs font-bold font-mono text-white">
+                                  {dnsItem.ip}
+                                </span>
                                 <span className="text-[10px] text-muted">
-                                  {dnsItem.dohActive ? 'Szyfrowanie DoH (HTTPS) Aktywne 🔒' : 'Transmisja Odkryta (UDP/TCP) 🔓'}
+                                  {dnsItem.dohActive
+                                    ? 'Szyfrowanie DoH (HTTPS) Aktywne 🔒'
+                                    : 'Transmisja Odkryta (UDP/TCP) 🔓'}
                                 </span>
                               </div>
-                              
+
                               <button
                                 className={`btn btn-xs ${dnsItem.dohActive ? 'btn-danger' : 'btn-primary'}`}
-                                onClick={() => handleToggleDoh(currentAdapterDoh.interfaceGuid, currentAdapterDoh.dns.map(d => d.ip), !dnsItem.dohActive)}
+                                onClick={() =>
+                                  handleToggleDoh(
+                                    currentAdapterDoh.interfaceGuid,
+                                    currentAdapterDoh.dns.map((d) => d.ip),
+                                    !dnsItem.dohActive
+                                  )
+                                }
                                 disabled={togglingDoh}
                                 style={{
                                   padding: '4px 10px',
@@ -659,14 +721,20 @@ export function Network() {
                                   cursor: 'pointer'
                                 }}
                               >
-                                {togglingDoh ? 'Zmienianie...' : dnsItem.dohActive ? 'Wyłącz DoH' : 'Włącz DoH (UAC)'}
+                                {togglingDoh
+                                  ? 'Zmienianie...'
+                                  : dnsItem.dohActive
+                                    ? 'Wyłącz DoH'
+                                    : 'Włącz DoH (UAC)'}
                               </button>
                             </div>
                           ))}
                         </div>
                       </div>
                     ) : (
-                      <p className="text-xs text-muted" style={{ margin: 0 }}>Brak skonfigurowanych serwerów DNS na tym interfejsie.</p>
+                      <p className="text-xs text-muted" style={{ margin: 0 }}>
+                        Brak skonfigurowanych serwerów DNS na tym interfejsie.
+                      </p>
                     )}
                   </div>
                 )
@@ -715,24 +783,53 @@ export function Network() {
 
             {/* Hardening Sieciowy */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px' }}>
-              <h2 className="flex items-center gap-sm mb-md" style={{ fontSize: '15px', margin: '0 0 12px 0', color: '#fff', fontWeight: 'bold' }}>
+              <h2
+                className="flex items-center gap-sm mb-md"
+                style={{
+                  fontSize: '15px',
+                  margin: '0 0 12px 0',
+                  color: '#fff',
+                  fontWeight: 'bold'
+                }}
+              >
                 <Globe size={16} style={{ color: 'var(--color-primary)' }} />
                 Zabezpieczenia sieci (Hardening)
               </h2>
               <p className="text-xs text-muted mb-md" style={{ lineHeight: 1.5 }}>
                 Wyłącz podatności lokalne i przestarzałe protokoły sieciowe w systemie Windows.
               </p>
-              
+
               <div className="flex flex-col gap-sm">
                 {/* LLMNR Toggle */}
-                <div className="flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div
+                  className="flex items-center justify-between"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.03)'
+                  }}
+                >
                   <div style={{ flex: 1, paddingRight: '8px' }}>
                     <div className="flex items-center gap-xs">
                       <span className="text-xs font-bold text-white">Blokada LLMNR</span>
-                      <span className="dot" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: hardening.llmnrDisabled ? '#34d399' : '#fb923c' }} />
+                      <span
+                        className="dot"
+                        style={{
+                          display: 'inline-block',
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: hardening.llmnrDisabled ? '#34d399' : '#fb923c'
+                        }}
+                      />
                     </div>
-                    <p className="text-[10px] text-muted" style={{ margin: '2px 0 0 0', lineHeight: 1.4 }}>
-                      Blokuje rozgłaszanie nazw lokalnych (Link-Local Multicast Name Resolution) w sieci.
+                    <p
+                      className="text-[10px] text-muted"
+                      style={{ margin: '2px 0 0 0', lineHeight: 1.4 }}
+                    >
+                      Blokuje rozgłaszanie nazw lokalnych (Link-Local Multicast Name Resolution) w
+                      sieci.
                     </p>
                   </div>
                   <button
@@ -753,19 +850,42 @@ export function Network() {
                 </div>
 
                 {/* NetBIOS Toggle */}
-                <div className="flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div
+                  className="flex items-center justify-between"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.03)'
+                  }}
+                >
                   <div style={{ flex: 1, paddingRight: '8px' }}>
                     <div className="flex items-center gap-xs">
                       <span className="text-xs font-bold text-white">Blokada NetBIOS</span>
-                      <span className="dot" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: hardening.netbiosDisabled ? '#34d399' : '#fb923c' }} />
+                      <span
+                        className="dot"
+                        style={{
+                          display: 'inline-block',
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: hardening.netbiosDisabled ? '#34d399' : '#fb923c'
+                        }}
+                      />
                     </div>
-                    <p className="text-[10px] text-muted" style={{ margin: '2px 0 0 0', lineHeight: 1.4 }}>
-                      Wyłącza NetBIOS over TCP/IP dla kart sieciowych. Zapobiega wyciekom skrótów NTLM.
+                    <p
+                      className="text-[10px] text-muted"
+                      style={{ margin: '2px 0 0 0', lineHeight: 1.4 }}
+                    >
+                      Wyłącza NetBIOS over TCP/IP dla kart sieciowych. Zapobiega wyciekom skrótów
+                      NTLM.
                     </p>
                   </div>
                   <button
                     className={`btn btn-xs ${hardening.netbiosDisabled ? 'btn-danger' : 'btn-primary'}`}
-                    onClick={() => handleToggleHardening('netbiosDisabled', !hardening.netbiosDisabled)}
+                    onClick={() =>
+                      handleToggleHardening('netbiosDisabled', !hardening.netbiosDisabled)
+                    }
                     disabled={loadingHardening}
                     style={{
                       padding: '4px 10px',
@@ -776,7 +896,11 @@ export function Network() {
                       minWidth: '85px'
                     }}
                   >
-                    {loadingHardening ? '...' : hardening.netbiosDisabled ? 'Wyłącz' : 'Włącz (UAC)'}
+                    {loadingHardening
+                      ? '...'
+                      : hardening.netbiosDisabled
+                        ? 'Wyłącz'
+                        : 'Włącz (UAC)'}
                   </button>
                 </div>
               </div>

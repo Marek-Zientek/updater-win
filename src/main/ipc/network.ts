@@ -505,13 +505,16 @@ export function setupNetworkIPC(): void {
   })
 
   // 10. Przełączanie DoH dla konkretnego interfejsu (wymaga UAC)
-  ipcMain.handle('toggle-dns-doh', async (_, interfaceGuid: string, dnsIps: string[], enable: boolean) => {
-    if (!interfaceGuid) return { success: false, error: 'Brak identyfikatora karty sieciowej.' }
-    if (!dnsIps || dnsIps.length === 0) return { success: false, error: 'Brak adresów IP serwerów DNS.' }
+  ipcMain.handle(
+    'toggle-dns-doh',
+    async (_, interfaceGuid: string, dnsIps: string[], enable: boolean) => {
+      if (!interfaceGuid) return { success: false, error: 'Brak identyfikatora karty sieciowej.' }
+      if (!dnsIps || dnsIps.length === 0)
+        return { success: false, error: 'Brak adresów IP serwerów DNS.' }
 
-    const innerScript = `
+      const innerScript = `
       $guid = '${interfaceGuid}'
-      $ips = @(${dnsIps.map(ip => `'${ip}'`).join(', ')})
+      $ips = @(${dnsIps.map((ip) => `'${ip}'`).join(', ')})
       $enable = $${enable ? 'true' : 'false'}
       
       foreach ($ip in $ips) {
@@ -540,19 +543,21 @@ export function setupNetworkIPC(): void {
       }
       Clear-DnsClientCache
     `
-    const innerBase64 = Buffer.from(innerScript, 'utf16le').toString('base64')
-    const script = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
+      const innerBase64 = Buffer.from(innerScript, 'utf16le').toString('base64')
+      const script = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
 
-    try {
-      await runPowerShellScript(script)
-      return { success: true }
-    } catch (error: any) {
-      return {
-        success: false,
-        error: 'Nie udało się skonfigurować DNS-over-HTTPS. Upewnij się, że zaakceptowałeś monit administratora (UAC).'
+      try {
+        await runPowerShellScript(script)
+        return { success: true }
+      } catch (error: any) {
+        return {
+          success: false,
+          error:
+            'Nie udało się skonfigurować DNS-over-HTTPS. Upewnij się, że zaakceptowałeś monit administratora (UAC).'
+        }
       }
     }
-  })
+  )
 
   // 11. Pobieranie zabezpieczeń sieciowych (LLMNR, NetBIOS)
   ipcMain.handle('get-network-hardening', async () => {
@@ -592,15 +597,21 @@ export function setupNetworkIPC(): void {
       }
       return { success: true, data: JSON.parse(stdout.trim()) }
     } catch (error: any) {
-      return { success: false, error: error.message, data: { llmnrDisabled: false, netbiosDisabled: false } }
+      return {
+        success: false,
+        error: error.message,
+        data: { llmnrDisabled: false, netbiosDisabled: false }
+      }
     }
   })
 
   // 12. Przełączanie zabezpieczeń sieciowych (LLMNR, NetBIOS) (wymaga UAC)
-  ipcMain.handle('toggle-network-hardening', async (_, key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) => {
-    let innerScript = ''
-    if (key === 'llmnrDisabled') {
-      innerScript = `
+  ipcMain.handle(
+    'toggle-network-hardening',
+    async (_, key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) => {
+      let innerScript = ''
+      if (key === 'llmnrDisabled') {
+        innerScript = `
         $path = "HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient"
         if ($${enabled ? 'true' : 'false'}) {
             if (!(Test-Path $path)) {
@@ -613,28 +624,30 @@ export function setupNetworkIPC(): void {
             }
         }
       `
-    } else if (key === 'netbiosDisabled') {
-      const val = enabled ? 2 : 0
-      innerScript = `
+      } else if (key === 'netbiosDisabled') {
+        const val = enabled ? 2 : 0
+        innerScript = `
         Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true } | ForEach-Object {
             $_.SetTCPIPNetBIOS(${val}) | Out-Null
         }
       `
-    } else {
-      return { success: false, error: 'Nieznana reguła zabezpieczeń sieci.' }
-    }
+      } else {
+        return { success: false, error: 'Nieznana reguła zabezpieczeń sieci.' }
+      }
 
-    const innerBase64 = Buffer.from(innerScript, 'utf16le').toString('base64')
-    const script = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
+      const innerBase64 = Buffer.from(innerScript, 'utf16le').toString('base64')
+      const script = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${innerBase64}' -Verb RunAs -WindowStyle Hidden -Wait`
 
-    try {
-      await runPowerShellScript(script)
-      return { success: true }
-    } catch (error: any) {
-      return {
-        success: false,
-        error: 'Nie udało się zmienić zabezpieczeń sieciowych. Upewnij się, że zaakceptowałeś monit administratora (UAC).'
+      try {
+        await runPowerShellScript(script)
+        return { success: true }
+      } catch (error: any) {
+        return {
+          success: false,
+          error:
+            'Nie udało się zmienić zabezpieczeń sieciowych. Upewnij się, że zaakceptowałeś monit administratora (UAC).'
+        }
       }
     }
-  })
+  )
 }

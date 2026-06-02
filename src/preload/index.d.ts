@@ -3,9 +3,13 @@ export interface IAuthAPI {
   login: (data: any) => Promise<any>
   logout: (token: string) => Promise<any>
   verifySession: (token: string) => Promise<any>
-  exportUserProfile: (userId?: string) => Promise<{ success: boolean; profileJson?: string; error?: string }>
+  exportUserProfile: (
+    userId?: string
+  ) => Promise<{ success: boolean; profileJson?: string; error?: string }>
   importUserProfile: (profileJson: string) => Promise<{ success: boolean; error?: string }>
-  syncProfileToCloud: (token: string) => Promise<{ success: boolean; lastSyncedAt?: string; error?: string }>
+  syncProfileToCloud: (
+    token: string
+  ) => Promise<{ success: boolean; lastSyncedAt?: string; error?: string }>
   syncProfileFromCloud: (token: string) => Promise<{ success: boolean; error?: string }>
   submitSystemTelemetry: (token: string, data: any) => Promise<{ success: boolean; error?: string }>
 }
@@ -32,9 +36,7 @@ export interface IHardwareAPI {
   runElevatedInstall: (
     wingetId: string
   ) => Promise<{ success: boolean; message?: string; error?: string }>
-  preflightDownload: (
-    wingetId: string
-  ) => Promise<{
+  preflightDownload: (wingetId: string) => Promise<{
     canDownload: boolean
     installerUrl?: string
     errorReason?: 'no_installer_url' | 'network_error' | 'disk_write_error' | 'http_error' | null
@@ -87,8 +89,13 @@ export interface IHardwareAPI {
   importBackup: () => Promise<{ success: boolean; canceled: boolean; error?: string }>
   getBloatwareApps: () => Promise<{ success: boolean; data: any[]; error?: string }>
   removeBloatwareApp: (packageFullName: string) => Promise<{ success: boolean; error?: string }>
-  scanLeftovers: (packageName: string) => Promise<{ success: boolean; files: string[]; registry: string[]; error?: string }>
-  cleanLeftovers: (files: string[], registry: string[]) => Promise<{ success: boolean; filesDeleted: number; regsDeleted: number; errors: string[] }>
+  scanLeftovers: (
+    packageName: string
+  ) => Promise<{ success: boolean; files: string[]; registry: string[]; error?: string }>
+  cleanLeftovers: (
+    files: string[],
+    registry: string[]
+  ) => Promise<{ success: boolean; filesDeleted: number; regsDeleted: number; errors: string[] }>
   pingDnsServers: () => Promise<{ success: boolean; data: any[]; error?: string }>
   getDnsConfig: () => Promise<{ success: boolean; data: any[]; error?: string }>
   setDnsServers: (
@@ -98,9 +105,20 @@ export interface IHardwareAPI {
   ) => Promise<{ success: boolean; error?: string }>
   resetDnsServers: (interfaceIndex: number) => Promise<{ success: boolean; error?: string }>
   getDnsDohStatus: () => Promise<{ success: boolean; data: any[]; error?: string }>
-  toggleDnsDoh: (interfaceGuid: string, dnsIps: string[], enable: boolean) => Promise<{ success: boolean; error?: string }>
-  getNetworkHardening: () => Promise<{ success: boolean; data: { llmnrDisabled: boolean; netbiosDisabled: boolean }; error?: string }>
-  toggleNetworkHardening: (key: 'llmnrDisabled' | 'netbiosDisabled', enabled: boolean) => Promise<{ success: boolean; error?: string }>
+  toggleDnsDoh: (
+    interfaceGuid: string,
+    dnsIps: string[],
+    enable: boolean
+  ) => Promise<{ success: boolean; error?: string }>
+  getNetworkHardening: () => Promise<{
+    success: boolean
+    data: { llmnrDisabled: boolean; netbiosDisabled: boolean }
+    error?: string
+  }>
+  toggleNetworkHardening: (
+    key: 'llmnrDisabled' | 'netbiosDisabled',
+    enabled: boolean
+  ) => Promise<{ success: boolean; error?: string }>
   runNetworkRepair: (
     repairType: 'flush' | 'winsock'
   ) => Promise<{ success: boolean; output?: string; error?: string }>
@@ -128,29 +146,73 @@ export interface IHardwareAPI {
     enabled: boolean
   ) => Promise<{ success: boolean; error?: string }>
   getGameBoosterStatus: () => Promise<{ success: boolean; active: boolean; error?: string }>
-  toggleGameBooster: (enable: boolean) => Promise<{ success: boolean; active: boolean; error?: string }>
+  toggleGameBooster: (
+    enable: boolean
+  ) => Promise<{ success: boolean; active: boolean; error?: string }>
   getMonitoredGames: () => Promise<{ success: boolean; data: any[]; error?: string }>
-  addCustomGame: (game: { name: string; exe: string }) => Promise<{ success: boolean; error?: string }>
+  addCustomGame: (game: {
+    name: string
+    exe: string
+  }) => Promise<{ success: boolean; error?: string }>
   deleteCustomGame: (exe: string) => Promise<{ success: boolean; error?: string }>
   runHardwareBenchmark: () => Promise<{ success: boolean; data?: any; error?: string }>
-  getGlobalBenchmarkRankings: (cpuModel: string, userScore: number) => Promise<{ success: boolean; data?: any; error?: string }>
-  uninstallApp: (wingetId: string) => Promise<{ success: boolean; data?: string; requiresElevation?: boolean; error?: string }>
-  runElevatedUninstall: (wingetId: string) => Promise<{ success: boolean; message?: string; error?: string }>
-  scanWin32Leftovers: (appName: string, publisher: string) => Promise<{ success: boolean; files: string[]; registry: string[]; error?: string }>
-  cleanWin32Leftovers: (files: string[], registry: string[]) => Promise<{ success: boolean; filesDeleted: number; regsDeleted: number; errors: string[] }>
-  getHardwareSpecsheet: (type: 'cpu' | 'gpu' | 'ram' | 'network', modelName: string) => Promise<{ success: boolean; data?: any; error?: string }>
-  getRemoteServerConfig: () => Promise<{ isRunning: boolean; port: number; pin: string; ips: string[] }>
-  toggleRemoteServer: (enable: boolean, port: number) => Promise<{ success: boolean; error?: string }>
+  getGlobalBenchmarkRankings: (
+    cpuModel: string,
+    userScore: number
+  ) => Promise<{ success: boolean; data?: any; error?: string }>
+  uninstallApp: (
+    wingetId: string
+  ) => Promise<{ success: boolean; data?: string; requiresElevation?: boolean; error?: string }>
+  runElevatedUninstall: (
+    wingetId: string
+  ) => Promise<{ success: boolean; message?: string; error?: string }>
+  scanWin32Leftovers: (
+    appName: string,
+    publisher: string
+  ) => Promise<{ success: boolean; files: string[]; registry: string[]; error?: string }>
+  cleanWin32Leftovers: (
+    files: string[],
+    registry: string[]
+  ) => Promise<{ success: boolean; filesDeleted: number; regsDeleted: number; errors: string[] }>
+  getHardwareSpecsheet: (
+    type: 'cpu' | 'gpu' | 'ram' | 'network',
+    modelName: string
+  ) => Promise<{ success: boolean; data?: any; error?: string }>
+  getRemoteServerConfig: () => Promise<{
+    isRunning: boolean
+    port: number
+    pin: string
+    ips: string[]
+  }>
+  toggleRemoteServer: (
+    enable: boolean,
+    port: number
+  ) => Promise<{ success: boolean; error?: string }>
   auth: IAuthAPI
   diagnostics: {
     startScan: (type: 'sfc' | 'dism' | 'audit') => Promise<{ success: boolean; error?: string }>
-    getProgress: () => Promise<{ active: boolean; type: 'sfc' | 'dism' | 'audit' | null; progress: number; logs: string }>
+    getProgress: () => Promise<{
+      active: boolean
+      type: 'sfc' | 'dism' | 'audit' | null
+      progress: number
+      logs: string
+    }>
     cancelScan: () => Promise<{ success: boolean; error?: string }>
     getBsodLogs: () => Promise<{ success: boolean; data: any[]; error?: string }>
   }
   ram: {
     getRamStats: () => Promise<{ total: number; free: number; standby: number; used: number }>
-    cleanRam: (type: 'standby' | 'workingsets' | 'both') => Promise<{ success: boolean; error?: string }>
+    cleanRam: (
+      type: 'standby' | 'workingsets' | 'both'
+    ) => Promise<{ success: boolean; error?: string }>
+  }
+  winUpdate: {
+    getStatus: () => Promise<{ paused: boolean; expiryTime: string; startTime: string }>
+    pauseUpdates: (days: number) => Promise<{ success: boolean; error?: string }>
+    resumeUpdates: () => Promise<{ success: boolean; error?: string }>
+    getHistory: () => Promise<{ success: boolean; data: any[]; error?: string }>
+    uninstallUpdate: (kbNumber: string) => Promise<{ success: boolean; error?: string }>
+    clearCache: () => Promise<{ success: boolean; error?: string }>
   }
 }
 

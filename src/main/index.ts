@@ -29,6 +29,7 @@ import { setupNetworkIPC } from './ipc/network'
 import { setupPeripheralsIPC } from './ipc/peripherals'
 import { setupDiagnosticsIPC } from './ipc/diagnostics'
 import { setupRamCleanerIPC } from './ipc/ramCleaner'
+import { setupWindowsUpdateIPC } from './ipc/windowsUpdate'
 import { initializeDatabase } from './db'
 import { startRemoteServer, stopRemoteServer, getRemoteServerStatus } from './remoteServer'
 
@@ -317,6 +318,7 @@ app.whenReady().then(async () => {
   setupPeripheralsIPC()
   setupDiagnosticsIPC()
   setupRamCleanerIPC()
+  setupWindowsUpdateIPC()
 
   // Zdalny Monitoring IPC
   ipcMain.handle('get-remote-server-config', async () => {
@@ -349,7 +351,9 @@ app.whenReady().then(async () => {
     const remotePortStr = await getSettingInternal('remote_server_port', '9090')
     const remotePort = parseInt(remotePortStr, 10) || 9090
     startRemoteServer(remotePort, (pin) => {
-      console.log(`[RemoteServer] Serwer uruchomiony automatycznie na porcie ${remotePort}. PIN: ${pin}`)
+      console.log(
+        `[RemoteServer] Serwer uruchomiony automatycznie na porcie ${remotePort}. PIN: ${pin}`
+      )
     }).catch(console.error)
   }
 

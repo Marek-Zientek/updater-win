@@ -150,15 +150,28 @@ export function Backup() {
     <div className="backup-container fade-in">
       {confirmRestorePoint && (
         <div className="restore-point-overlay">
-          <div className="restore-point-card glass-panel flex flex-col items-center justify-center text-center p-xl" style={{ padding: '32px' }}>
+          <div
+            className="restore-point-card glass-panel flex flex-col items-center justify-center text-center p-xl"
+            style={{ padding: '32px' }}
+          >
             <AlertTriangle size={48} color="var(--color-warning)" className="mb-md" />
-            <h3 style={{ margin: '16px 0 8px 0', fontSize: '18px', color: '#fff', fontWeight: 700 }}>
+            <h3
+              style={{ margin: '16px 0 8px 0', fontSize: '18px', color: '#fff', fontWeight: 700 }}
+            >
               Przywracanie systemu
             </h3>
-            <p className="text-muted text-sm max-w-[360px]" style={{ margin: '0 0 20px 0', lineHeight: 1.5 }}>
-              Czy na pewno chcesz przywrócić stan systemu do punktu <strong>"{confirmRestorePoint.description}"</strong> z dnia {formatDate(confirmRestorePoint.creationTime)}?
-              <br /><br />
-              <strong style={{ color: 'var(--color-warning)' }}>Uwaga:</strong> Zapisz całą swoją pracę przed zatwierdzeniem. Komputer uruchomi systemowe narzędzie przywracania, co może wymagać ponownego uruchomienia komputera.
+            <p
+              className="text-muted text-sm max-w-[360px]"
+              style={{ margin: '0 0 20px 0', lineHeight: 1.5 }}
+            >
+              Czy na pewno chcesz przywrócić stan systemu do punktu{' '}
+              <strong>"{confirmRestorePoint.description}"</strong> z dnia{' '}
+              {formatDate(confirmRestorePoint.creationTime)}?
+              <br />
+              <br />
+              <strong style={{ color: 'var(--color-warning)' }}>Uwaga:</strong> Zapisz całą swoją
+              pracę przed zatwierdzeniem. Komputer uruchomi systemowe narzędzie przywracania, co
+              może wymagać ponownego uruchomienia komputera.
             </p>
             <div className="flex gap-sm justify-center">
               <button
@@ -172,7 +185,12 @@ export function Backup() {
                 className="btn btn-primary btn-sm flex items-center gap-xs"
                 onClick={handleRestorePoint}
                 disabled={restoringPoint}
-                style={{ background: 'var(--color-warning)', borderColor: 'var(--color-warning)', color: '#000', fontWeight: 'bold' }}
+                style={{
+                  background: 'var(--color-warning)',
+                  borderColor: 'var(--color-warning)',
+                  color: '#000',
+                  fontWeight: 'bold'
+                }}
               >
                 {restoringPoint ? (
                   <>

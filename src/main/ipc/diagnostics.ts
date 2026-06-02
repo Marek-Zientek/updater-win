@@ -21,7 +21,7 @@ function getBsodLogsFromEventLog(): Promise<any[]> {
     }
 
     // PowerShell skrypt odpytujący Event ID 1001 i filtrujący BugCheck
-    const psScript = 
+    const psScript =
       `$events = Get-WinEvent -FilterHashtable @{LogName='System'; Id=1001} -ErrorAction SilentlyContinue | ` +
       `Where-Object { $_.Message -like '*BugCheck*' -or $_.Message -like '*WER-SystemErrorReporting*' } | ` +
       `Select-Object -First 10; ` +
@@ -77,7 +77,7 @@ function getBsodLogsFromEventLog(): Promise<any[]> {
 function runDiagnosticCommand(command: 'sfc' | 'dism'): Promise<boolean> {
   return new Promise((resolve) => {
     const tempLogPath = getLogPath()
-    
+
     // Usunięcie starego pliku logu przed startem
     if (fs.existsSync(tempLogPath)) {
       try {
@@ -87,11 +87,14 @@ function runDiagnosticCommand(command: 'sfc' | 'dism'): Promise<boolean> {
       }
     }
 
-    fs.writeFileSync(tempLogPath, `[System] Rozpoczynanie skanowania ${command.toUpperCase()}...\n`, 'utf8')
+    fs.writeFileSync(
+      tempLogPath,
+      `[System] Rozpoczynanie skanowania ${command.toUpperCase()}...\n`,
+      'utf8'
+    )
 
-    const winCommand = command === 'sfc' 
-      ? 'sfc /scannow' 
-      : 'dism /online /cleanup-image /restorehealth'
+    const winCommand =
+      command === 'sfc' ? 'sfc /scannow' : 'dism /online /cleanup-image /restorehealth'
 
     // Uruchomienie z uprawnieniami administratora i wymuszeniem kodowania UTF-8 (chcp 65001)
     const elevatedCmd = `Start-Process cmd.exe -ArgumentList '/c chcp 65001 && ${winCommand} > "${tempLogPath}" 2>&1' -Verb RunAs -WindowStyle Hidden -Wait`
@@ -117,7 +120,8 @@ export function setupDiagnosticsIPC() {
     activeScanType = type
     isScanRunning = true
     currentProgress = 0
-    scanLogs = '[System] Uruchamianie procedury diagnostycznej...\nProszę potwierdzić monit UAC jeśli się pojawi.\n'
+    scanLogs =
+      '[System] Uruchamianie procedury diagnostycznej...\nProszę potwierdzić monit UAC jeśli się pojawi.\n'
 
     const tempLogPath = getLogPath()
 

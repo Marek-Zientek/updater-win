@@ -136,7 +136,9 @@ export function Dashboard() {
     <div className="dashboard-container">
       <header className="flex items-center justify-between">
         <div>
-          <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 800 }}>Witaj z powrotem{welcomeName}!</h1>
+          <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 800 }}>
+            Witaj z powrotem{welcomeName}!
+          </h1>
           <p className="text-muted" style={{ margin: 0, fontSize: '14px' }}>
             Wszystkie systemy działają prawidłowo
           </p>
@@ -215,13 +217,21 @@ export function Dashboard() {
         <div className="dashboard-card clickable" onClick={() => navigate('/hardware')}>
           <div className="flex justify-between mb-sm">
             <h3 className="card-title">Temperatura & Ochrona</h3>
-            <Thermometer size={20} color={typeof currentTemp === 'number' && currentTemp > 80 ? 'var(--color-error)' : 'var(--color-warning)'} />
+            <Thermometer
+              size={20}
+              color={
+                typeof currentTemp === 'number' && currentTemp > 80
+                  ? 'var(--color-error)'
+                  : 'var(--color-warning)'
+              }
+            />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="stat-value">{currentTemp !== '--' ? `${currentTemp}°C` : '--'}</p>
               <p className="text-muted text-xs">
-                Ochrona: {thermalMonitorEnabled ? `Aktywna (${thermalThresholdTemp}°C)` : 'Nieaktywna'}
+                Ochrona:{' '}
+                {thermalMonitorEnabled ? `Aktywna (${thermalThresholdTemp}°C)` : 'Nieaktywna'}
               </p>
             </div>
             <div className="flex flex-col items-end gap-xs" onClick={(e) => e.stopPropagation()}>

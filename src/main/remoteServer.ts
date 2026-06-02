@@ -1190,7 +1190,10 @@ const getDashboardHtml = (computerName: string) => `
 `
 
 // Inicjalizacja i uruchomienie serwera
-export function startRemoteServer(port: number, onStart: (pin: string) => void): Promise<{ success: boolean; error?: string }> {
+export function startRemoteServer(
+  port: number,
+  onStart: (pin: string) => void
+): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
     try {
       if (isServerRunning) {
@@ -1226,16 +1229,17 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
 
         if (req.url === '/api/status' && req.method === 'GET') {
           try {
-            const [mem, load, rawCpuTemp, graphics, disks, cpuSpeed, processes, netStats] = await Promise.all([
-              si.mem(),
-              si.currentLoad(),
-              si.cpuTemperature(),
-              si.graphics(),
-              si.fsSize(),
-              si.cpuCurrentSpeed(),
-              si.processes(),
-              si.networkStats()
-            ])
+            const [mem, load, rawCpuTemp, graphics, disks, cpuSpeed, processes, netStats] =
+              await Promise.all([
+                si.mem(),
+                si.currentLoad(),
+                si.cpuTemperature(),
+                si.graphics(),
+                si.fsSize(),
+                si.cpuCurrentSpeed(),
+                si.processes(),
+                si.networkStats()
+              ])
 
             // Wywołanie zaawansowanego odczytu temperatury z fallbackiem (przekazujemy obciążenie CPU do estymacji)
             const cpuTemp = await getCpuTemperatureWithFallback(
@@ -1261,7 +1265,10 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
             let netUpload = 0
             let activeIface = 'Brak połączenia'
             if (Array.isArray(netStats) && netStats.length > 0) {
-              const active = netStats.find((n) => n.operstate === 'up') || netStats.find((n) => n.rx_sec > 0 || n.tx_sec > 0) || netStats[0]
+              const active =
+                netStats.find((n) => n.operstate === 'up') ||
+                netStats.find((n) => n.rx_sec > 0 || n.tx_sec > 0) ||
+                netStats[0]
               if (active) {
                 activeIface = active.iface
                 netDownload = active.rx_sec || 0
@@ -1375,17 +1382,19 @@ export function startRemoteServer(port: number, onStart: (pin: string) => void):
         onStart(activePin)
 
         // Asynchroniczne pobranie stałych parametrów sprzętowych (raz po starcie serwera)
-        Promise.all([
-          si.cpu(),
-          si.osInfo(),
-          si.graphics(),
-          si.networkInterfaces()
-        ])
+        Promise.all([si.cpu(), si.osInfo(), si.graphics(), si.networkInterfaces()])
           .then(([cpu, osData, graphics, netIfaces]) => {
-            staticSystemInfo.cpuModel = (cpu.manufacturer + ' ' + cpu.brand).trim() || 'Nieznany CPU'
-            staticSystemInfo.osInfo = (osData.distro + ' ' + osData.release + ' (' + osData.arch + ')').trim() || 'Nieznany OS'
-            staticSystemInfo.gpuModel = graphics.controllers.map((g) => g.model).filter(Boolean).join(', ') || 'Zintegrowana'
-            
+            staticSystemInfo.cpuModel =
+              (cpu.manufacturer + ' ' + cpu.brand).trim() || 'Nieznany CPU'
+            staticSystemInfo.osInfo =
+              (osData.distro + ' ' + osData.release + ' (' + osData.arch + ')').trim() ||
+              'Nieznany OS'
+            staticSystemInfo.gpuModel =
+              graphics.controllers
+                .map((g) => g.model)
+                .filter(Boolean)
+                .join(', ') || 'Zintegrowana'
+
             if (Array.isArray(netIfaces)) {
               netIfaces.forEach((iface) => {
                 if (iface.iface) {
@@ -1417,7 +1426,12 @@ export function stopRemoteServer(): void {
 }
 
 // Sprawdzenie stanu serwera
-export function getRemoteServerStatus(): { isRunning: boolean; port: number; pin: string; ips: string[] } {
+export function getRemoteServerStatus(): {
+  isRunning: boolean
+  port: number
+  pin: string
+  ips: string[]
+} {
   return {
     isRunning: isServerRunning,
     port: serverPort,

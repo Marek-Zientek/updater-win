@@ -705,11 +705,16 @@ export function setupWingetIPC() {
     if (!wingetId) return { success: false, error: 'Brak wingetId.' }
     try {
       console.log(`[Winget Uninstall] Próba cichego odinstalowania dla ${wingetId}...`)
-      const { stdout } = await runWinget(`uninstall --id ${wingetId} --silent --accept-source-agreements`)
+      const { stdout } = await runWinget(
+        `uninstall --id ${wingetId} --silent --accept-source-agreements`
+      )
       return { success: true, data: cleanWingetOutput(stdout) }
     } catch (uninstallError: any) {
       const cleaned = cleanWingetOutput(uninstallError?.stderr || uninstallError?.stdout || '')
-      console.warn(`[Winget Uninstall] Ciche odinstalowanie nie powiodło się dla ${wingetId}:`, cleaned)
+      console.warn(
+        `[Winget Uninstall] Ciche odinstalowanie nie powiodło się dla ${wingetId}:`,
+        cleaned
+      )
 
       if (isUACError(uninstallError)) {
         return {
@@ -781,7 +786,7 @@ export function setupWingetIPC() {
               const stat = await fs.promises.stat(itemPath)
               if (stat.isDirectory()) {
                 const lowerItem = item.toLowerCase()
-                const matches = terms.some(t => {
+                const matches = terms.some((t) => {
                   const cleanT = t.toLowerCase().trim()
                   return cleanT.length > 2 && lowerItem.includes(cleanT)
                 })
@@ -806,7 +811,7 @@ export function setupWingetIPC() {
           if (Test-Path $path) {
               Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Where-Object { 
                   $name = $_.PSChildName.toLowerCase()
-                  ${terms.map(t => `$name -like '*${t.toLowerCase().trim()}*'`).join(' -or ')}
+                  ${terms.map((t) => `$name -like '*${t.toLowerCase().trim()}*'`).join(' -or ')}
               } | ForEach-Object { $_.Name }
           }
       }
@@ -821,9 +826,11 @@ export function setupWingetIPC() {
       if (stdout && stdout.trim() !== '') {
         const parsed = JSON.parse(stdout.trim())
         const keys = Array.isArray(parsed) ? parsed : [parsed]
-        keys.forEach(k => {
+        keys.forEach((k) => {
           if (typeof k === 'string') {
-            detectedRegs.push(k.replace('HKEY_CURRENT_USER', 'HKCU').replace('HKEY_LOCAL_MACHINE', 'HKLM'))
+            detectedRegs.push(
+              k.replace('HKEY_CURRENT_USER', 'HKCU').replace('HKEY_LOCAL_MACHINE', 'HKLM')
+            )
           }
         })
       }
@@ -846,7 +853,9 @@ export function setupWingetIPC() {
 
     const deleteScriptParts: string[] = []
     for (const file of files) {
-      deleteScriptParts.push(`if (Test-Path '${file}') { Remove-Item -Path '${file}' -Recurse -Force }`)
+      deleteScriptParts.push(
+        `if (Test-Path '${file}') { Remove-Item -Path '${file}' -Recurse -Force }`
+      )
     }
     for (const reg of registry) {
       const formattedReg = reg
@@ -854,7 +863,9 @@ export function setupWingetIPC() {
         .replace('HKEY_LOCAL_MACHINE', 'HKLM:')
         .replace('HKCU', 'HKCU:')
         .replace('HKLM', 'HKLM:')
-      deleteScriptParts.push(`if (Test-Path '${formattedReg}') { Remove-Item -Path '${formattedReg}' -Recurse -Force }`)
+      deleteScriptParts.push(
+        `if (Test-Path '${formattedReg}') { Remove-Item -Path '${formattedReg}' -Recurse -Force }`
+      )
     }
 
     if (deleteScriptParts.length === 0) {

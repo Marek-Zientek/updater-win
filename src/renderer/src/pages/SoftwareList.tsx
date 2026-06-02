@@ -68,7 +68,9 @@ export function SoftwareList() {
   const [cleaningLeftovers, setCleaningLeftovers] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
   const [selectedRegs, setSelectedRegs] = useState<string[]>([])
-  const [uacUninstallApp, setUacUninstallApp] = useState<{ name: string; wingetId: string } | null>(null)
+  const [uacUninstallApp, setUacUninstallApp] = useState<{ name: string; wingetId: string } | null>(
+    null
+  )
 
   useEffect(() => {
     if (location.state && (location.state as any).tab) {
@@ -306,7 +308,7 @@ export function SoftwareList() {
       const publisher = app.id.split('.')[0] || ''
       setLeftoversAppName(app.name)
       setLeftoversPublisher(publisher)
-      
+
       setShowLeftoversModal(true)
       setScanningLeftovers(true)
       setSelectedFiles([])
@@ -327,7 +329,7 @@ export function SoftwareList() {
       } finally {
         setScanningLeftovers(false)
       }
-      
+
       fetchData()
     } else if (res.requiresElevation) {
       setUacUninstallApp({ name: app.name, wingetId: app.id })
@@ -341,11 +343,11 @@ export function SoftwareList() {
     setElevating(true)
     await window.api.runElevatedUninstall(uacUninstallApp.wingetId)
     setElevating(false)
-    
+
     const appName = uacUninstallApp.name
     const wingetId = uacUninstallApp.wingetId
     setUacUninstallApp(null)
-    
+
     const publisher = wingetId.split('.')[0] || ''
     setLeftoversAppName(appName)
     setLeftoversPublisher(publisher)
@@ -355,7 +357,7 @@ export function SoftwareList() {
     setSelectedRegs([])
     setLeftoversFiles([])
     setLeftoversRegs([])
-    
+
     setTimeout(async () => {
       try {
         const scanRes = await window.api.scanWin32Leftovers(appName, publisher)
@@ -378,7 +380,9 @@ export function SoftwareList() {
     setCleaningLeftovers(true)
     try {
       const cleanRes = await window.api.cleanWin32Leftovers(selectedFiles, selectedRegs)
-      setError(`Pomyślnie wyczyszczono pozostałości! Usunięto foldery: ${cleanRes.filesDeleted}, klucze rejestru: ${cleanRes.regsDeleted}`)
+      setError(
+        `Pomyślnie wyczyszczono pozostałości! Usunięto foldery: ${cleanRes.filesDeleted}, klucze rejestru: ${cleanRes.regsDeleted}`
+      )
       setShowLeftoversModal(false)
     } catch (err: any) {
       setError(err.message || 'Błąd czyszczenia pozostałości.')
@@ -813,7 +817,10 @@ export function SoftwareList() {
       )}
 
       {uacUninstallApp && (
-        <div className="uac-modal animate-fade-in" style={{ borderColor: 'rgba(239, 68, 68, 0.25)', background: 'rgba(239, 68, 68, 0.04)' }}>
+        <div
+          className="uac-modal animate-fade-in"
+          style={{ borderColor: 'rgba(239, 68, 68, 0.25)', background: 'rgba(239, 68, 68, 0.04)' }}
+        >
           <div className="uac-modal-header" style={{ color: '#f87171' }}>
             <div className="flex items-center gap-sm">
               <ShieldAlert size={20} color="#f87171" />
@@ -825,9 +832,9 @@ export function SoftwareList() {
           </div>
           <p className="uac-modal-app">📦 {uacUninstallApp.name}</p>
           <p className="uac-modal-desc">
-            Deinstalator tego programu wymaga uprawnień administratora Windows (UAC). Kliknij poniższy
-            przycisk — system wyświetli <strong>jedno okno UAC</strong>, po jego zatwierdzeniu deinstalacja
-            uruchomi się w osobnym oknie.
+            Deinstalator tego programu wymaga uprawnień administratora Windows (UAC). Kliknij
+            poniższy przycisk — system wyświetli <strong>jedno okno UAC</strong>, po jego
+            zatwierdzeniu deinstalacja uruchomi się w osobnym oknie.
           </p>
           <div className="uac-modal-footer" style={{ borderTopColor: 'rgba(239, 68, 68, 0.1)' }}>
             <span className="upgrade-error-hint">
@@ -852,49 +859,94 @@ export function SoftwareList() {
       )}
 
       {showLeftoversModal && (
-        <div className="uac-modal animate-fade-in" style={{ borderColor: 'rgba(69, 243, 255, 0.3)', background: 'rgba(4, 5, 7, 0.98)', position: 'fixed', top: '10%', left: '15%', right: '15%', zIndex: 1000, boxShadow: '0 20px 40px rgba(0,0,0,0.8)', maxHeight: '80%', overflowY: 'auto' }}>
+        <div
+          className="uac-modal animate-fade-in"
+          style={{
+            borderColor: 'rgba(69, 243, 255, 0.3)',
+            background: 'rgba(4, 5, 7, 0.98)',
+            position: 'fixed',
+            top: '10%',
+            left: '15%',
+            right: '15%',
+            zIndex: 1000,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+            maxHeight: '80%',
+            overflowY: 'auto'
+          }}
+        >
           <div className="uac-modal-header" style={{ color: 'var(--color-primary)' }}>
             <div className="flex items-center gap-sm">
-              <RefreshCw size={20} className={scanningLeftovers ? 'spin' : ''} color="var(--color-primary)" />
+              <RefreshCw
+                size={20}
+                className={scanningLeftovers ? 'spin' : ''}
+                color="var(--color-primary)"
+              />
               <strong>Analizator Pozostałości (Leftovers Cleaner)</strong>
             </div>
             <button className="upgrade-error-close" onClick={() => setShowLeftoversModal(false)}>
               <X size={16} />
             </button>
           </div>
-          
+
           <div className="flex flex-col gap-sm" style={{ padding: '8px 0' }}>
-            <h3 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>Pozostałości po programie: <strong className="text-primary">{leftoversAppName}</strong> {leftoversPublisher && <span className="text-xs text-muted">({leftoversPublisher})</span>}</h3>
+            <h3 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>
+              Pozostałości po programie:{' '}
+              <strong className="text-primary">{leftoversAppName}</strong>{' '}
+              {leftoversPublisher && (
+                <span className="text-xs text-muted">({leftoversPublisher})</span>
+              )}
+            </h3>
             <p className="text-xs text-muted" style={{ margin: 0, lineHeight: 1.5 }}>
-              Wyszukaliśmy foldery na dysku oraz klucze rejestru Windows, które mogły pozostać po odinstalowaniu programu. Zaznacz elementy, które chcesz trwale usunąć.
+              Wyszukaliśmy foldery na dysku oraz klucze rejestru Windows, które mogły pozostać po
+              odinstalowaniu programu. Zaznacz elementy, które chcesz trwale usunąć.
             </p>
-            
+
             {scanningLeftovers ? (
               <div className="flex flex-col items-center justify-center py-8 gap-sm">
                 <div className="loader animate-spin rounded-full h-8 w-8 border-3 border-primary border-t-transparent" />
-                <span className="text-xs text-muted animate-pulse">Skanowanie rejestru i dysków systemowych...</span>
+                <span className="text-xs text-muted animate-pulse">
+                  Skanowanie rejestru i dysków systemowych...
+                </span>
               </div>
-            ) : (leftoversFiles.length === 0 && leftoversRegs.length === 0) ? (
+            ) : leftoversFiles.length === 0 && leftoversRegs.length === 0 ? (
               <div className="text-center py-8">
-                <span className="text-xs text-success font-bold">✓ Brak wykrytych pozostałości! System jest czysty.</span>
+                <span className="text-xs text-success font-bold">
+                  ✓ Brak wykrytych pozostałości! System jest czysty.
+                </span>
               </div>
             ) : (
-              <div className="flex flex-col gap-md" style={{ maxHeight: '350px', overflowY: 'auto', paddingRight: '6px' }}>
+              <div
+                className="flex flex-col gap-md"
+                style={{ maxHeight: '350px', overflowY: 'auto', paddingRight: '6px' }}
+              >
                 {/* Foldery */}
                 {leftoversFiles.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Wykryte foldery ({leftoversFiles.length}):</h4>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">
+                      Wykryte foldery ({leftoversFiles.length}):
+                    </h4>
                     <div className="flex flex-col gap-xs">
                       {leftoversFiles.map((file, idx) => (
-                        <label key={idx} className="flex items-center gap-sm" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>
+                        <label
+                          key={idx}
+                          className="flex items-center gap-sm"
+                          style={{
+                            padding: '8px 12px',
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.04)',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '11px'
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={selectedFiles.includes(file)}
                             onChange={() => {
                               if (selectedFiles.includes(file)) {
-                                setSelectedFiles(prev => prev.filter(f => f !== file))
+                                setSelectedFiles((prev) => prev.filter((f) => f !== file))
                               } else {
-                                setSelectedFiles(prev => [...prev, file])
+                                setSelectedFiles((prev) => [...prev, file])
                               }
                             }}
                           />
@@ -908,18 +960,31 @@ export function SoftwareList() {
                 {/* Rejestr */}
                 {leftoversRegs.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Klucze rejestru ({leftoversRegs.length}):</h4>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">
+                      Klucze rejestru ({leftoversRegs.length}):
+                    </h4>
                     <div className="flex flex-col gap-xs">
                       {leftoversRegs.map((reg, idx) => (
-                        <label key={idx} className="flex items-center gap-sm" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>
+                        <label
+                          key={idx}
+                          className="flex items-center gap-sm"
+                          style={{
+                            padding: '8px 12px',
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.04)',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '11px'
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={selectedRegs.includes(reg)}
                             onChange={() => {
                               if (selectedRegs.includes(reg)) {
-                                setSelectedRegs(prev => prev.filter(r => r !== reg))
+                                setSelectedRegs((prev) => prev.filter((r) => r !== reg))
                               } else {
-                                setSelectedRegs(prev => [...prev, reg])
+                                setSelectedRegs((prev) => [...prev, reg])
                               }
                             }}
                           />
@@ -932,15 +997,22 @@ export function SoftwareList() {
               </div>
             )}
           </div>
-          
-          <div className="uac-modal-footer" style={{ borderTopColor: 'rgba(69, 243, 255, 0.1)', marginTop: '8px' }}>
+
+          <div
+            className="uac-modal-footer"
+            style={{ borderTopColor: 'rgba(69, 243, 255, 0.1)', marginTop: '8px' }}
+          >
             <span className="upgrade-error-hint">
               ⚠️ Usunięcie wymaga jednorazowych uprawnień administratora (UAC).
             </span>
             <div className="flex gap-sm">
               <button
                 className="btn-uac-elevate"
-                style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', borderColor: 'rgba(255,255,255,0.1)' }}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  color: '#fff',
+                  borderColor: 'rgba(255,255,255,0.1)'
+                }}
                 onClick={() => setShowLeftoversModal(false)}
               >
                 Anuluj
@@ -952,10 +1024,16 @@ export function SoftwareList() {
                   background: 'var(--color-primary)',
                   borderColor: 'var(--color-primary)'
                 }}
-                disabled={cleaningLeftovers || scanningLeftovers || (selectedFiles.length === 0 && selectedRegs.length === 0)}
+                disabled={
+                  cleaningLeftovers ||
+                  scanningLeftovers ||
+                  (selectedFiles.length === 0 && selectedRegs.length === 0)
+                }
                 onClick={handleCleanLeftovers}
               >
-                {cleaningLeftovers ? 'Czyszczenie...' : `Usuń zaznaczone (${selectedFiles.length + selectedRegs.length})`}
+                {cleaningLeftovers
+                  ? 'Czyszczenie...'
+                  : `Usuń zaznaczone (${selectedFiles.length + selectedRegs.length})`}
               </button>
             </div>
           </div>
@@ -989,7 +1067,12 @@ export function SoftwareList() {
             >
               <div className="flex justify-between items-center mb-sm">
                 <h3
-                  style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--color-primary)' }}
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    margin: 0,
+                    color: 'var(--color-primary)'
+                  }}
                 >
                   Trwa masowa aktualizacja programów...
                 </h3>
@@ -1047,7 +1130,12 @@ export function SoftwareList() {
                   }}
                 >
                   <div
-                    style={{ fontSize: '12px', fontWeight: 600, color: '#f87171', marginBottom: '6px' }}
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#f87171',
+                      marginBottom: '6px'
+                    }}
                   >
                     Uwagi i błędy z tej sesji:
                   </div>
@@ -1104,7 +1192,12 @@ export function SoftwareList() {
                   }}
                 >
                   <div
-                    style={{ fontSize: '12px', fontWeight: 600, color: '#f87171', marginBottom: '6px' }}
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#f87171',
+                      marginBottom: '6px'
+                    }}
                   >
                     Podsumowanie problemów:
                   </div>
@@ -1125,7 +1218,9 @@ export function SoftwareList() {
                   </div>
                 </div>
               ) : (
-                <p style={{ fontSize: '11px', color: '#34d399', marginTop: '6px', marginBottom: 0 }}>
+                <p
+                  style={{ fontSize: '11px', color: '#34d399', marginTop: '6px', marginBottom: 0 }}
+                >
                   ✓ Wszystkie wybrane aplikacje zaktualizowały się pomyślnie.
                 </p>
               )}
@@ -1166,7 +1261,9 @@ export function SoftwareList() {
                     height: '16px'
                   }}
                 />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                <span
+                  style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}
+                >
                   Zaznacz wszystkie ({selectedIds.length} z {filteredList.length})
                 </span>
               </div>
@@ -1178,7 +1275,8 @@ export function SoftwareList() {
                 style={{
                   padding: '10px 20px',
                   borderRadius: '10px',
-                  background: selectedIds.length > 0 ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
+                  background:
+                    selectedIds.length > 0 ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
                   color: selectedIds.length > 0 ? '#000' : 'rgba(255,255,255,0.3)',
                   border: selectedIds.length > 0 ? 'none' : '1px solid rgba(255,255,255,0.08)',
                   boxShadow: selectedIds.length > 0 ? '0 4px 15px rgba(69, 243, 255, 0.3)' : 'none',
@@ -1240,7 +1338,12 @@ export function SoftwareList() {
                           }}
                         />
                       )}
-                      <AppIcon wingetId={app.id} name={app.name} homepage={app.homepage} size={36} />
+                      <AppIcon
+                        wingetId={app.id}
+                        name={app.name}
+                        homepage={app.homepage}
+                        size={36}
+                      />
                       <div>
                         <h3 className="app-name">{app.name}</h3>
                         <div className="app-meta">

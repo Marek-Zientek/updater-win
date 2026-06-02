@@ -50,8 +50,8 @@ async function isHostsTelemetryBlocked(): Promise<boolean> {
 }
 
 async function toggleHostsTelemetry(enabled: boolean): Promise<boolean> {
-  const domainsStr = domainsList.map(d => `'${d}'`).join(', ')
-  
+  const domainsStr = domainsList.map((d) => `'${d}'`).join(', ')
+
   let innerScript = ''
   if (enabled) {
     innerScript = `
@@ -290,9 +290,15 @@ async function getSteamGames(): Promise<{ name: string; exe: string }[]> {
 }
 
 // Logika włączania/wyłączania Trybu Gry
-export async function toggleGameBoosterInternal(enable: boolean): Promise<{ success: boolean; active: boolean; error?: string }> {
+export async function toggleGameBoosterInternal(
+  enable: boolean
+): Promise<{ success: boolean; active: boolean; error?: string }> {
   if (process.platform !== 'win32') {
-    return { success: false, active: false, error: 'Ta funkcja jest dostępna tylko w systemie Windows.' }
+    return {
+      success: false,
+      active: false,
+      error: 'Ta funkcja jest dostępna tylko w systemie Windows.'
+    }
   }
 
   try {
@@ -333,7 +339,10 @@ export async function toggleGameBoosterInternal(enable: boolean): Promise<{ succ
       await saveSettingInternal('game_booster_active', 'true')
       return { success: true, active: true }
     } else {
-      const originalPlan = await getSettingInternal('original_power_plan_guid', '381b4222-f694-41f0-9685-ff5bb260df2e')
+      const originalPlan = await getSettingInternal(
+        'original_power_plan_guid',
+        '381b4222-f694-41f0-9685-ff5bb260df2e'
+      )
 
       const disableScript = `
         powercfg /setactive ${originalPlan} | Out-Null
@@ -390,7 +399,9 @@ async function applyProcessOptimizations(exe: string): Promise<void> {
           affinityMask += Math.pow(2, i)
         }
 
-        console.log(`[Game Booster Optimizer] CPU Hybrid detected: ${pCoresCount} P-Cores (${pCoreThreads} threads). Setting affinity mask of ${processName} to ${affinityMask}...`)
+        console.log(
+          `[Game Booster Optimizer] CPU Hybrid detected: ${pCoresCount} P-Cores (${pCoreThreads} threads). Setting affinity mask of ${processName} to ${affinityMask}...`
+        )
         const psAffinity = `Get-Process -Name "${processName}" -ErrorAction SilentlyContinue | ForEach-Object { $_.ProcessorAffinity = ${affinityMask} }`
         await execAsync(`powershell -NoProfile -NonInteractive -Command "${psAffinity}"`)
       }
@@ -483,7 +494,11 @@ export function startGameScanner(): void {
   }, 5000)
 }
 
-export async function runCleanupInternal(): Promise<{ success: boolean; cleanedBytes: number; error?: string }> {
+export async function runCleanupInternal(): Promise<{
+  success: boolean
+  cleanedBytes: number
+  error?: string
+}> {
   try {
     const userTemp = process.env.TEMP || ''
     const systemTemp = 'C:\\Windows\\Temp'
@@ -516,9 +531,11 @@ export async function runCleanupInternal(): Promise<{ success: boolean; cleanedB
         Remove-Item -Path '${updateCache}\\*' -Recurse -Force -ErrorAction SilentlyContinue
       `
       const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${cleanCommand.replace(/\n/g, '; ')}"' -Verb RunAs -WindowStyle Hidden -Wait`
-      
-      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`)
-      cleanedBytes += (pSize + uSize)
+
+      await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`
+      )
+      cleanedBytes += pSize + uSize
     } catch (err) {
       console.error('[Cleaner] Elevated clean failed or canceled:', err)
     }
@@ -539,7 +556,14 @@ export function setupOptimizerIPC(): void {
       const prefetch = 'C:\\Windows\\Prefetch'
       const updateCache = 'C:\\Windows\\SoftwareDistribution\\Download'
 
-      const [tempSize, systemTempSize, systemLogSize, prefetchSize, updateCacheSize, browserCachePaths] = await Promise.all([
+      const [
+        tempSize,
+        systemTempSize,
+        systemLogSize,
+        prefetchSize,
+        updateCacheSize,
+        browserCachePaths
+      ] = await Promise.all([
         userTemp ? getDirectorySize(userTemp) : Promise.resolve(0),
         getDirectorySize(systemTemp),
         getDirectorySize(systemLogs),
@@ -683,7 +707,7 @@ export function setupOptimizerIPC(): void {
         `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/\n/g, ' ')}"`
       )
       const data = JSON.parse(stdout.trim())
-      
+
       const hostsBlocked = await isHostsTelemetryBlocked()
       data.hostsTelemetry = !hostsBlocked
 
@@ -703,7 +727,9 @@ export function setupOptimizerIPC(): void {
       if (key === 'telemetry' || key === 'errorReporting') {
         const serviceName = key === 'telemetry' ? 'DiagTrack' : 'WerSvc'
         const startupType = enabled ? (key === 'telemetry' ? 'Automatic' : 'Manual') : 'Disabled'
-        const statusCmd = enabled ? `Start-Service -Name ${serviceName}` : `Stop-Service -Name ${serviceName} -Force`
+        const statusCmd = enabled
+          ? `Start-Service -Name ${serviceName}`
+          : `Stop-Service -Name ${serviceName} -Force`
 
         const directCommand = `Set-Service -Name ${serviceName} -StartupType ${startupType}; ${statusCmd}`
 
@@ -715,10 +741,12 @@ export function setupOptimizerIPC(): void {
           return { success: true }
         } catch (execErr: any) {
           // Jeśli brak uprawnień administracyjnych (np. Access Denied), wywołujemy UAC prompt
-          console.log(`[Optimizer] Direct toggling of service ${serviceName} failed. Requesting UAC elevation...`)
-          
+          console.log(
+            `[Optimizer] Direct toggling of service ${serviceName} failed. Requesting UAC elevation...`
+          )
+
           const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "Set-Service -Name ${serviceName} -StartupType ${startupType}; ${statusCmd}"' -Verb RunAs -WindowStyle Hidden`
-          
+
           await execAsync(
             `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`
           )
@@ -879,23 +907,34 @@ export function setupOptimizerIPC(): void {
 
   // 12. Pobieranie usług systemowych
   ipcMain.handle('get-system-services', async () => {
-    const curatedServices: Record<string, { category: 'telemetry' | 'performance' | 'gaming' | 'security' | 'other', safety: 'safe' | 'caution' | 'critical', recommended: 'disable' | 'manual' | 'enable' }> = {
-      'DiagTrack': { category: 'telemetry', safety: 'safe', recommended: 'disable' },
-      'dmwappushservice': { category: 'telemetry', safety: 'safe', recommended: 'disable' },
-      'diagnosticshub.standardcollector.service': { category: 'telemetry', safety: 'safe', recommended: 'disable' },
-      'WerSvc': { category: 'telemetry', safety: 'safe', recommended: 'manual' },
-      'PcaSvc': { category: 'gaming', safety: 'caution', recommended: 'manual' },
-      'SysMain': { category: 'performance', safety: 'caution', recommended: 'manual' },
-      'Spooler': { category: 'performance', safety: 'safe', recommended: 'manual' },
-      'WbioSrvc': { category: 'security', safety: 'safe', recommended: 'manual' },
-      'TabletInputService': { category: 'performance', safety: 'safe', recommended: 'manual' },
-      'bthserv': { category: 'other', safety: 'safe', recommended: 'manual' },
-      'XblAuthManager': { category: 'gaming', safety: 'safe', recommended: 'manual' },
-      'XblGameSave': { category: 'gaming', safety: 'safe', recommended: 'manual' },
-      'XboxNetApiSvc': { category: 'gaming', safety: 'safe', recommended: 'manual' },
-      'XboxGipSvc': { category: 'gaming', safety: 'safe', recommended: 'manual' },
-      'MapsBroker': { category: 'other', safety: 'safe', recommended: 'disable' },
-      'RemoteRegistry': { category: 'security', safety: 'safe', recommended: 'disable' }
+    const curatedServices: Record<
+      string,
+      {
+        category: 'telemetry' | 'performance' | 'gaming' | 'security' | 'other'
+        safety: 'safe' | 'caution' | 'critical'
+        recommended: 'disable' | 'manual' | 'enable'
+      }
+    > = {
+      DiagTrack: { category: 'telemetry', safety: 'safe', recommended: 'disable' },
+      dmwappushservice: { category: 'telemetry', safety: 'safe', recommended: 'disable' },
+      'diagnosticshub.standardcollector.service': {
+        category: 'telemetry',
+        safety: 'safe',
+        recommended: 'disable'
+      },
+      WerSvc: { category: 'telemetry', safety: 'safe', recommended: 'manual' },
+      PcaSvc: { category: 'gaming', safety: 'caution', recommended: 'manual' },
+      SysMain: { category: 'performance', safety: 'caution', recommended: 'manual' },
+      Spooler: { category: 'performance', safety: 'safe', recommended: 'manual' },
+      WbioSrvc: { category: 'security', safety: 'safe', recommended: 'manual' },
+      TabletInputService: { category: 'performance', safety: 'safe', recommended: 'manual' },
+      bthserv: { category: 'other', safety: 'safe', recommended: 'manual' },
+      XblAuthManager: { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      XblGameSave: { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      XboxNetApiSvc: { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      XboxGipSvc: { category: 'gaming', safety: 'safe', recommended: 'manual' },
+      MapsBroker: { category: 'other', safety: 'safe', recommended: 'disable' },
+      RemoteRegistry: { category: 'security', safety: 'safe', recommended: 'disable' }
     }
 
     const psCommand = `
@@ -917,12 +956,22 @@ export function setupOptimizerIPC(): void {
 
       const formatted = list.map((s: any) => {
         const name = s.Name
-        const meta = curatedServices[name] || curatedServices[name.toLowerCase()] || { category: 'other', safety: 'caution', recommended: 'manual' }
+        const meta = curatedServices[name] ||
+          curatedServices[name.toLowerCase()] || {
+            category: 'other',
+            safety: 'caution',
+            recommended: 'manual'
+          }
         return {
           name,
           displayName: s.DisplayName,
           status: s.State === 'Running' ? 'running' : 'stopped',
-          startupType: s.StartMode === 'Auto' ? 'automatic' : (s.StartMode === 'Disabled' ? 'disabled' : 'manual'),
+          startupType:
+            s.StartMode === 'Auto'
+              ? 'automatic'
+              : s.StartMode === 'Disabled'
+                ? 'disabled'
+                : 'manual',
           description: s.Description || '',
           category: meta.category,
           safety: meta.safety,
@@ -933,20 +982,31 @@ export function setupOptimizerIPC(): void {
 
       return { success: true, data: formatted }
     } catch (error: any) {
-      console.error('[Services IPC] Failed to fetch services, falling back to Get-Service...', error)
+      console.error(
+        '[Services IPC] Failed to fetch services, falling back to Get-Service...',
+        error
+      )
       try {
         const fallbackCmd = `Get-Service | Select-Object Name, DisplayName, Status, StartType | ConvertTo-Json -Compress`
-        const { stdout } = await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${fallbackCmd}"`)
+        const { stdout } = await execAsync(
+          `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${fallbackCmd}"`
+        )
         const services = JSON.parse(stdout.trim())
         const list = Array.isArray(services) ? services : [services]
         const formatted = list.map((s: any) => {
           const name = s.Name
-          const meta = curatedServices[name] || curatedServices[name.toLowerCase()] || { category: 'other', safety: 'caution', recommended: 'manual' }
+          const meta = curatedServices[name] ||
+            curatedServices[name.toLowerCase()] || {
+              category: 'other',
+              safety: 'caution',
+              recommended: 'manual'
+            }
           return {
             name,
             displayName: s.DisplayName,
             status: s.Status === 4 ? 'running' : 'stopped',
-            startupType: s.StartType === 2 ? 'automatic' : (s.StartType === 4 ? 'disabled' : 'manual'),
+            startupType:
+              s.StartType === 2 ? 'automatic' : s.StartType === 4 ? 'disabled' : 'manual',
             description: '',
             category: meta.category,
             safety: meta.safety,
@@ -962,37 +1022,48 @@ export function setupOptimizerIPC(): void {
   })
 
   // 13. Zmiana stanu / konfiguracji usługi systemowej
-  ipcMain.handle('toggle-system-service', async (_, serviceName: string, action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled') => {
-    if (!serviceName) return { success: false, error: 'Brak nazwy usługi.' }
+  ipcMain.handle(
+    'toggle-system-service',
+    async (
+      _,
+      serviceName: string,
+      action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled'
+    ) => {
+      if (!serviceName) return { success: false, error: 'Brak nazwy usługi.' }
 
-    let psCommand = ''
-    if (action === 'start') {
-      psCommand = `Start-Service -Name "${serviceName}"`
-    } else if (action === 'stop') {
-      psCommand = `Stop-Service -Name "${serviceName}" -Force`
-    } else {
-      const startupMap = {
-        automatic: 'Automatic',
-        manual: 'Manual',
-        disabled: 'Disabled'
+      let psCommand = ''
+      if (action === 'start') {
+        psCommand = `Start-Service -Name "${serviceName}"`
+      } else if (action === 'stop') {
+        psCommand = `Stop-Service -Name "${serviceName}" -Force`
+      } else {
+        const startupMap = {
+          automatic: 'Automatic',
+          manual: 'Manual',
+          disabled: 'Disabled'
+        }
+        psCommand = `Set-Service -Name "${serviceName}" -StartupType ${startupMap[action]}`
       }
-      psCommand = `Set-Service -Name "${serviceName}" -StartupType ${startupMap[action]}`
-    }
 
-    try {
-      await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
-      return { success: true }
-    } catch (err: any) {
-      console.log(`[Services IPC] Direct command failed for service ${serviceName}. Requesting UAC elevation...`)
       try {
-        const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"' -Verb RunAs -WindowStyle Hidden -Wait`
-        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`)
-        return { success: true, elevated: true }
-      } catch (elevatedErr: any) {
-        return { success: false, error: elevatedErr.message }
+        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`)
+        return { success: true }
+      } catch (err: any) {
+        console.log(
+          `[Services IPC] Direct command failed for service ${serviceName}. Requesting UAC elevation...`
+        )
+        try {
+          const elevatedCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"' -Verb RunAs -WindowStyle Hidden -Wait`
+          await execAsync(
+            `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${elevatedCommand}"`
+          )
+          return { success: true, elevated: true }
+        } catch (elevatedErr: any) {
+          return { success: false, error: elevatedErr.message }
+        }
       }
     }
-  })
+  )
 
   // 14. Skanowanie przestrzeni dyskowej (Milestone 2)
   ipcMain.handle('scan-disk-space', async () => {
@@ -1108,7 +1179,9 @@ export function setupOptimizerIPC(): void {
     switch (key) {
       case 'rdpDisabled':
         const rdpVal = enabled ? 1 : 0
-        const rdpSvcAction = enabled ? "Stop-Service -Name TermService -Force" : "Start-Service -Name TermService"
+        const rdpSvcAction = enabled
+          ? 'Stop-Service -Name TermService -Force'
+          : 'Start-Service -Name TermService'
         script = `Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections' -Value ${rdpVal} -Force; ${rdpSvcAction}`
         break
       case 'adminSharesDisabled':
@@ -1117,7 +1190,9 @@ export function setupOptimizerIPC(): void {
         break
       case 'spoolerDisabled':
         const spoolerStartup = enabled ? 'Disabled' : 'Automatic'
-        const spoolerAction = enabled ? "Stop-Service -Name Spooler -Force" : "Start-Service -Name Spooler"
+        const spoolerAction = enabled
+          ? 'Stop-Service -Name Spooler -Force'
+          : 'Start-Service -Name Spooler'
         script = `Set-Service -Name Spooler -StartupType ${spoolerStartup}; ${spoolerAction}`
         break
       case 'defenderOptimized':
@@ -1184,7 +1259,8 @@ async function scanDirectoryRecursive(
           let category = 'other'
           if (['.mp4', '.mkv', '.avi', '.mov', '.wmv'].includes(ext)) category = 'video'
           else if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(ext)) category = 'audio'
-          else if (['.pdf', '.docx', '.xlsx', '.pptx', '.txt', '.zip', '.rar', '.7z'].includes(ext)) category = 'document'
+          else if (['.pdf', '.docx', '.xlsx', '.pptx', '.txt', '.zip', '.rar', '.7z'].includes(ext))
+            category = 'document'
           else if (['.exe', '.msi', '.dll', '.sys', '.iso'].includes(ext)) category = 'system'
 
           categorySizes[category] = (categorySizes[category] || 0) + size
@@ -1207,4 +1283,3 @@ async function scanDirectoryRecursive(
     // Pomijaj błędy braku dostępu
   }
 }
-

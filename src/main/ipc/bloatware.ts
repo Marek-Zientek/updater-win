@@ -193,12 +193,12 @@ export function setupBloatwareIPC(): void {
   // 3. Skanowanie pozostałości po usuniętej aplikacji
   ipcMain.handle('scan-leftovers', async (_, packageName: string) => {
     if (!packageName) return { success: false, error: 'Brak nazwy pakietu.' }
-    
+
     const localAppData = process.env.LOCALAPPDATA || ''
     const packagesDir = path.join(localAppData, 'Packages')
     const detectedFiles: string[] = []
     const detectedRegs: string[] = []
-    
+
     try {
       if (fs.existsSync(packagesDir)) {
         const folders = await fs.promises.readdir(packagesDir)
@@ -220,10 +220,12 @@ export function setupBloatwareIPC(): void {
             Get-ChildItem -Path $path | Where-Object { $_.Name -like '*${packageName}*' } | ForEach-Object { $_.Name }
         }
       `
-      const { stdout } = await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/\n/g, ' ')}"`)
+      const { stdout } = await execAsync(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/\n/g, ' ')}"`
+      )
       if (stdout && stdout.trim() !== '') {
-        const keys = stdout.split(/\r?\n/).filter(k => k.trim() !== '')
-        keys.forEach(k => {
+        const keys = stdout.split(/\r?\n/).filter((k) => k.trim() !== '')
+        keys.forEach((k) => {
           detectedRegs.push(k.replace('HKEY_CURRENT_USER', 'HKCU'))
         })
       }
@@ -247,7 +249,9 @@ export function setupBloatwareIPC(): void {
     for (const filePath of files) {
       try {
         if (fs.existsSync(filePath)) {
-          await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Path '${filePath}' -Recurse -Force"`)
+          await execAsync(
+            `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Path '${filePath}' -Recurse -Force"`
+          )
           filesDeleted++
         }
       } catch (err: any) {
@@ -258,7 +262,9 @@ export function setupBloatwareIPC(): void {
     for (const regPath of registry) {
       try {
         const formattedPath = regPath.replace('HKEY_CURRENT_USER', 'HKCU:').replace('HKCU', 'HKCU:')
-        await execAsync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Path '${formattedPath}' -Recurse -Force"`)
+        await execAsync(
+          `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Path '${formattedPath}' -Recurse -Force"`
+        )
         regsDeleted++
       } catch (err: any) {
         errors.push(`Rejestr: ${regPath} - ${err.message}`)
@@ -273,4 +279,3 @@ export function setupBloatwareIPC(): void {
     }
   })
 }
-

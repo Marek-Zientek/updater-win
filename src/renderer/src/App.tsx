@@ -19,6 +19,8 @@ import { PerformanceHUD } from './pages/PerformanceHUD'
 import { MultiInstaller } from './pages/MultiInstaller'
 import Diagnostics from './pages/Diagnostics'
 import RamCleaner from './pages/RamCleaner'
+import ServicesManager from './pages/ServicesManager'
+import UpdateHub from './pages/UpdateHub'
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -113,13 +115,15 @@ export default function App() {
           <Route path="software/:id" element={<AppDetails />} />
           <Route path="hardware" element={<HardwareInfo />} />
           <Route path="performance" element={<Performance />} />
-           <Route path="optimizer" element={<Optimizer />} />
+          <Route path="optimizer" element={<Optimizer />} />
           <Route path="ram-cleaner" element={<RamCleaner />} />
+          <Route path="services-manager" element={<ServicesManager />} />
           <Route path="bloatware" element={<Bloatware />} />
           <Route path="network" element={<Network />} />
           <Route path="peripherals" element={<Peripherals />} />
           <Route path="backup" element={<Backup />} />
           <Route path="diagnostics" element={<Diagnostics />} />
+          <Route path="update-hub" element={<UpdateHub />} />
           <Route path="settings" element={<Settings />} />
           <Route path="multi-installer" element={<MultiInstaller />} />
         </Route>

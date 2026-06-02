@@ -73,7 +73,10 @@ const HardwareInfo: React.FC = () => {
           cpuName = res.data.cpu?.brand
         }
       }
-      const res = await window.api.getGlobalBenchmarkRankings(cpuName || 'Generic CPU', result.scores.cpuMulti)
+      const res = await window.api.getGlobalBenchmarkRankings(
+        cpuName || 'Generic CPU',
+        result.scores.cpuMulti
+      )
       if (res.success) {
         setGlobalRank(res.data)
       }
@@ -110,7 +113,7 @@ const HardwareInfo: React.FC = () => {
       const loadDriversData = async () => {
         setLoadingDrivers(true)
         setDriverMessage('Skanowanie sterowników systemowych...')
-        
+
         try {
           const dRes = await window.api.getSystemDrivers()
           if (dRes.success) {
@@ -168,7 +171,7 @@ const HardwareInfo: React.FC = () => {
       if (res.success && res.data) {
         setBenchProgress(100)
         setCurrentStep('Test zakończony pomyślnie!')
-        
+
         const cpuSingleScore = Math.round(res.data.cpuSingle / 4)
         const cpuMultiScore = Math.round(res.data.cpuMulti / 4)
         const ramScore = Math.round(res.data.ramSpeed / 8)
@@ -176,11 +179,11 @@ const HardwareInfo: React.FC = () => {
         const diskWriteScore = Math.round(res.data.diskWrite / 2)
 
         const overallIndex = Math.round(
-          (cpuSingleScore * 0.2) + 
-          (cpuMultiScore * 0.4) + 
-          (ramScore * 0.15) + 
-          (diskReadScore * 0.15) + 
-          (diskWriteScore * 0.1)
+          cpuSingleScore * 0.2 +
+            cpuMultiScore * 0.4 +
+            ramScore * 0.15 +
+            diskReadScore * 0.15 +
+            diskWriteScore * 0.1
         )
 
         const finalResult = {
@@ -217,11 +220,14 @@ const HardwareInfo: React.FC = () => {
       const res = await window.api.getStaticHardware()
       if (res.success) {
         setStaticData(res.data)
-        
+
         // Fetch spec sheets in background
         const cpuName = res.data.cpu?.brand || ''
         const gpuName = res.data.gpu?.[0]?.model || ''
-        const ramName = res.data.memory?.layout?.[0]?.partNum || res.data.memory?.layout?.[0]?.manufacturer || 'DDR4'
+        const ramName =
+          res.data.memory?.layout?.[0]?.partNum ||
+          res.data.memory?.layout?.[0]?.manufacturer ||
+          'DDR4'
         const netName = res.data.network?.[0]?.iface || 'Network Controller'
 
         if (cpuName) {
@@ -342,11 +348,35 @@ Kompilacja systemu operacyjnego: ${os.build}
   const renderBenchmark = () => {
     // Rating mapping based on overall index
     const getRating = (score: number) => {
-      if (score >= 12000) return { label: 'Ekstremalna wydajność (Extreme)', className: 'rating-extreme', glowColor: '#ec4899' }
-      if (score >= 8000) return { label: 'Wysoka wydajność (High-End)', className: 'rating-high', glowColor: 'var(--color-primary)' }
-      if (score >= 4000) return { label: 'Dobra wydajność (Mid-Range)', className: 'rating-mid', glowColor: '#22c55e' }
-      if (score >= 1500) return { label: 'Biurowy / Standardowy', className: 'rating-standard', glowColor: '#eab308' }
-      return { label: 'Wymaga modernizacji (Low-End)', className: 'rating-low', glowColor: '#ef4444' }
+      if (score >= 12000)
+        return {
+          label: 'Ekstremalna wydajność (Extreme)',
+          className: 'rating-extreme',
+          glowColor: '#ec4899'
+        }
+      if (score >= 8000)
+        return {
+          label: 'Wysoka wydajność (High-End)',
+          className: 'rating-high',
+          glowColor: 'var(--color-primary)'
+        }
+      if (score >= 4000)
+        return {
+          label: 'Dobra wydajność (Mid-Range)',
+          className: 'rating-mid',
+          glowColor: '#22c55e'
+        }
+      if (score >= 1500)
+        return {
+          label: 'Biurowy / Standardowy',
+          className: 'rating-standard',
+          glowColor: '#eab308'
+        }
+      return {
+        label: 'Wymaga modernizacji (Low-End)',
+        className: 'rating-low',
+        glowColor: '#ef4444'
+      }
     }
 
     const rating = benchResult ? getRating(benchResult.scores.overall) : null
@@ -362,30 +392,40 @@ Kompilacja systemu operacyjnego: ${os.build}
 
     // Get recommendations
     const getRecommendation = (res: any) => {
-      if (!res) return 'Uruchom pełny test wydajności, aby otrzymać zaawansowane rekomendacje optymalizacyjne.'
-      
+      if (!res)
+        return 'Uruchom pełny test wydajności, aby otrzymać zaawansowane rekomendacje optymalizacyjne.'
+
       const { scores } = res
       let advice = ''
-      
+
       if (scores.cpuSingle > 3000 && scores.cpuMulti > 15000) {
-        advice += 'Twój procesor to prawdziwy potwór wydajnościowy. Doskonale radzi sobie z zaawansowanym renderowaniem i wielowątkową pracą. '
+        advice +=
+          'Twój procesor to prawdziwy potwór wydajnościowy. Doskonale radzi sobie z zaawansowanym renderowaniem i wielowątkową pracą. '
       } else if (scores.cpuMulti < 5000) {
-        advice += 'Wydajność wielowątkowa Twojego procesora jest dość niska. Może to spowalniać pracę podczas uruchamiania wielu aplikacji jednocześnie lub edycji wideo. '
+        advice +=
+          'Wydajność wielowątkowa Twojego procesora jest dość niska. Może to spowalniać pracę podczas uruchamiania wielu aplikacji jednocześnie lub edycji wideo. '
       }
 
       if (scores.ram > 6000) {
-        advice += 'Szybkość pamięci RAM jest znakomita, co pozwala na pełne wykorzystanie przepustowości procesora. '
+        advice +=
+          'Szybkość pamięci RAM jest znakomita, co pozwala na pełne wykorzystanie przepustowości procesora. '
       } else if (scores.ram < 3000) {
-        advice += 'Zalecamy sprawdzenie, czy w BIOS/UEFI włączony jest profil XMP/EXPO dla pamięci RAM – niska przepustowość pamięci może być wąskim gardłem. '
+        advice +=
+          'Zalecamy sprawdzenie, czy w BIOS/UEFI włączony jest profil XMP/EXPO dla pamięci RAM – niska przepustowość pamięci może być wąskim gardłem. '
       }
 
       if (scores.diskRead > 3000) {
-        advice += 'Dysk SSD NVMe pracuje z pełną wydajnością sekwencyjną, gwarantując błyskawiczny start systemu i gier. '
+        advice +=
+          'Dysk SSD NVMe pracuje z pełną wydajnością sekwencyjną, gwarantując błyskawiczny start systemu i gier. '
       } else if (scores.diskRead < 1000) {
-        advice += 'Prędkość odczytu dysku sugeruje, że korzystasz ze starszego dysku SSD SATA lub tradycyjnego dysku HDD. Wymiana na dysk SSD NVMe PCIe dałaby ogromny odczuwalny skok szybkości działania systemu.'
+        advice +=
+          'Prędkość odczytu dysku sugeruje, że korzystasz ze starszego dysku SSD SATA lub tradycyjnego dysku HDD. Wymiana na dysk SSD NVMe PCIe dałaby ogromny odczuwalny skok szybkości działania systemu.'
       }
 
-      return advice || 'Konfiguracja Twojego komputera jest dobrze zbalansowana. Brak widocznych wąskich gardeł sprzętowych.'
+      return (
+        advice ||
+        'Konfiguracja Twojego komputera jest dobrze zbalansowana. Brak widocznych wąskich gardeł sprzętowych.'
+      )
     }
 
     return (
@@ -401,11 +441,7 @@ Kompilacja systemu operacyjnego: ${os.build}
             </span>
           </div>
 
-          <button
-            className="benchmark-btn"
-            onClick={handleRunBenchmark}
-            disabled={benchmarking}
-          >
+          <button className="benchmark-btn" onClick={handleRunBenchmark} disabled={benchmarking}>
             {benchmarking ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
@@ -428,10 +464,7 @@ Kompilacja systemu operacyjnego: ${os.build}
               <span className="text-white">{benchProgress}%</span>
             </div>
             <div className="benchmark-progress-bar-bg mt-2">
-              <div
-                className="benchmark-progress-bar-fill"
-                style={{ width: `${benchProgress}%` }}
-              />
+              <div className="benchmark-progress-bar-fill" style={{ width: `${benchProgress}%` }} />
             </div>
           </div>
         )}
@@ -458,14 +491,14 @@ Kompilacja systemu operacyjnego: ${os.build}
                   }}
                 />
                 <div className="benchmark-index-content">
-                  <span className="benchmark-index-score">{benchResult.scores.overall.toLocaleString()}</span>
+                  <span className="benchmark-index-score">
+                    {benchResult.scores.overall.toLocaleString()}
+                  </span>
                   <span className="benchmark-index-label">PUNKTY INDEX</span>
                 </div>
               </div>
 
-              <span className={`benchmark-rating-badge ${rating?.className}`}>
-                {rating?.label}
-              </span>
+              <span className={`benchmark-rating-badge ${rating?.className}`}>{rating?.label}</span>
 
               <div className="text-[10px] text-muted font-bold uppercase tracking-wider mt-6 pt-6 border-t border-white/5 w-full">
                 Test ukończono: {new Date(benchResult.timestamp).toLocaleString()}
@@ -491,13 +524,20 @@ Kompilacja systemu operacyjnego: ${os.build}
                       <Cpu size={14} className="text-warning mr-2" />
                       CPU Single-Core
                     </span>
-                    <span className="benchmark-card-score">{benchResult.scores.cpuSingle.toLocaleString()}</span>
+                    <span className="benchmark-card-score">
+                      {benchResult.scores.cpuSingle.toLocaleString()}
+                    </span>
                   </div>
                   <div className="benchmark-card-raw">
                     Prędkość obliczeniowa na pojedynczym wątku
                   </div>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-warning rounded-full" style={{ width: `${Math.min(100, (benchResult.scores.cpuSingle / 4000) * 100)}%` }} />
+                    <div
+                      className="h-full bg-warning rounded-full"
+                      style={{
+                        width: `${Math.min(100, (benchResult.scores.cpuSingle / 4000) * 100)}%`
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -508,13 +548,20 @@ Kompilacja systemu operacyjnego: ${os.build}
                       <Cpu size={14} className="text-primary mr-2" />
                       CPU Multi-Core
                     </span>
-                    <span className="benchmark-card-score">{benchResult.scores.cpuMulti.toLocaleString()}</span>
+                    <span className="benchmark-card-score">
+                      {benchResult.scores.cpuMulti.toLocaleString()}
+                    </span>
                   </div>
                   <div className="benchmark-card-raw">
                     Wydajność wielowątkowa procesora (pełna moc)
                   </div>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (benchResult.scores.cpuMulti / 30000) * 100)}%` }} />
+                    <div
+                      className="h-full bg-primary rounded-full"
+                      style={{
+                        width: `${Math.min(100, (benchResult.scores.cpuMulti / 30000) * 100)}%`
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -525,13 +572,18 @@ Kompilacja systemu operacyjnego: ${os.build}
                       <Database size={14} className="text-success mr-2" />
                       Przepustowość RAM
                     </span>
-                    <span className="benchmark-card-score">{benchResult.scores.ram.toLocaleString()}</span>
+                    <span className="benchmark-card-score">
+                      {benchResult.scores.ram.toLocaleString()}
+                    </span>
                   </div>
                   <div className="benchmark-card-raw">
                     Transfer pamięci: {benchResult.ramSpeed.toLocaleString()} MB/s
                   </div>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-success rounded-full" style={{ width: `${Math.min(100, (benchResult.ramSpeed / 75000) * 100)}%` }} />
+                    <div
+                      className="h-full bg-success rounded-full"
+                      style={{ width: `${Math.min(100, (benchResult.ramSpeed / 75000) * 100)}%` }}
+                    />
                   </div>
                 </div>
 
@@ -543,14 +595,23 @@ Kompilacja systemu operacyjnego: ${os.build}
                       Dysk Systemowy
                     </span>
                     <span className="benchmark-card-score">
-                      {Math.round((benchResult.scores.diskRead + benchResult.scores.diskWrite) / 2).toLocaleString()}
+                      {Math.round(
+                        (benchResult.scores.diskRead + benchResult.scores.diskWrite) / 2
+                      ).toLocaleString()}
                     </span>
                   </div>
                   <div className="benchmark-card-raw text-[11px]">
-                    Odczyt: {benchResult.diskRead.toLocaleString()} MB/s | Zapis: {benchResult.diskWrite.toLocaleString()} MB/s
+                    Odczyt: {benchResult.diskRead.toLocaleString()} MB/s | Zapis:{' '}
+                    {benchResult.diskWrite.toLocaleString()} MB/s
                   </div>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ backgroundColor: '#a855f7', width: `${Math.min(100, (benchResult.diskRead / 8000) * 100)}%` }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        backgroundColor: '#a855f7',
+                        width: `${Math.min(100, (benchResult.diskRead / 8000) * 100)}%`
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -569,8 +630,8 @@ Kompilacja systemu operacyjnego: ${os.build}
                       <AreaChart data={chartData}>
                         <defs>
                           <linearGradient id="colorOverall" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                            <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <Area
@@ -596,7 +657,14 @@ Kompilacja systemu operacyjnego: ${os.build}
               )}
 
               {/* Global Benchmark Ranking Hub */}
-              <div className="benchmark-history-panel" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+              <div
+                className="benchmark-history-panel"
+                style={{
+                  marginTop: '24px',
+                  borderTop: '1px solid rgba(255,255,255,0.05)',
+                  paddingTop: '20px'
+                }}
+              >
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-2">
                     <Sparkles size={16} className="text-primary animate-pulse" />
@@ -608,7 +676,15 @@ Kompilacja systemu operacyjnego: ${os.build}
                     className="btn btn-secondary btn-xs flex items-center gap-xs"
                     onClick={() => fetchGlobalRankings(benchResult)}
                     disabled={loadingRank}
-                    style={{ fontSize: '10px', padding: '4px 10px', cursor: 'pointer', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                    style={{
+                      fontSize: '10px',
+                      padding: '4px 10px',
+                      cursor: 'pointer',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#fff'
+                    }}
                   >
                     <RefreshCw size={10} className={loadingRank ? 'spin' : ''} />
                     <span>Porównaj online</span>
@@ -622,23 +698,69 @@ Kompilacja systemu operacyjnego: ${os.build}
                   </div>
                 ) : globalRank ? (
                   <div className="flex flex-col gap-sm">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div className="flex flex-col items-center justify-center" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-                        <span className="text-[10px] text-muted font-bold uppercase">Twój Wynik vs Średnia CPU</span>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '12px',
+                        background: 'rgba(255,255,255,0.02)',
+                        padding: '12px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255,255,255,0.04)'
+                      }}
+                    >
+                      <div
+                        className="flex flex-col items-center justify-center"
+                        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
+                      >
+                        <span className="text-[10px] text-muted font-bold uppercase">
+                          Twój Wynik vs Średnia CPU
+                        </span>
                         <div className="flex items-baseline gap-xs mt-xs">
-                          <span className="text-lg font-black font-mono text-primary">{benchResult.scores.cpuMulti.toLocaleString()}</span>
-                          <span className="text-xs text-muted">/ {globalRank.averageScore.toLocaleString()}</span>
+                          <span className="text-lg font-black font-mono text-primary">
+                            {benchResult.scores.cpuMulti.toLocaleString()}
+                          </span>
+                          <span className="text-xs text-muted">
+                            / {globalRank.averageScore.toLocaleString()}
+                          </span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center justify-center">
-                        <span className="text-[10px] text-muted font-bold uppercase">Centylowy wskaźnik</span>
-                        <span className="text-lg font-black font-mono text-success mt-xs">Top {100 - globalRank.percentile}%</span>
-                        <span className="text-[9px] text-muted text-center" style={{ marginTop: '2px' }}>Szybszy niż {globalRank.percentile}% urządzeń</span>
+                        <span className="text-[10px] text-muted font-bold uppercase">
+                          Centylowy wskaźnik
+                        </span>
+                        <span className="text-lg font-black font-mono text-success mt-xs">
+                          Top {100 - globalRank.percentile}%
+                        </span>
+                        <span
+                          className="text-[9px] text-muted text-center"
+                          style={{ marginTop: '2px' }}
+                        >
+                          Szybszy niż {globalRank.percentile}% urządzeń
+                        </span>
                       </div>
                     </div>
 
-                    <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.03)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 80px 40px', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+                    <div
+                      style={{
+                        background: 'rgba(0,0,0,0.15)',
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        border: '1px solid rgba(255,255,255,0.03)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '40px 1fr 80px 40px',
+                          padding: '10px 14px',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                          color: 'rgba(255,255,255,0.4)',
+                          textTransform: 'uppercase'
+                        }}
+                      >
                         <span>Poz.</span>
                         <span>Konfiguracja (Procesor)</span>
                         <span style={{ textAlign: 'right' }}>Score</span>
@@ -652,7 +774,10 @@ Kompilacja systemu operacyjnego: ${os.build}
                               display: 'grid',
                               gridTemplateColumns: '40px 1fr 80px 40px',
                               padding: '10px 14px',
-                              borderBottom: idx < globalRank.leaderboard.length - 1 ? '1px solid rgba(255,255,255,0.02)' : 'none',
+                              borderBottom:
+                                idx < globalRank.leaderboard.length - 1
+                                  ? '1px solid rgba(255,255,255,0.02)'
+                                  : 'none',
                               fontSize: '12px',
                               background: item.isUser ? 'rgba(69, 243, 255, 0.06)' : 'transparent',
                               color: item.isUser ? 'var(--color-primary)' : '#fff',
@@ -664,8 +789,12 @@ Kompilacja systemu operacyjnego: ${os.build}
                               <span className="truncate">{item.name}</span>
                               <span className="text-[9px] text-muted truncate">{item.cpu}</span>
                             </div>
-                            <span className="font-mono" style={{ textAlign: 'right' }}>{item.score.toLocaleString()}</span>
-                            <span className="font-mono text-muted" style={{ textAlign: 'right' }}>{item.country}</span>
+                            <span className="font-mono" style={{ textAlign: 'right' }}>
+                              {item.score.toLocaleString()}
+                            </span>
+                            <span className="font-mono text-muted" style={{ textAlign: 'right' }}>
+                              {item.country}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -673,7 +802,10 @@ Kompilacja systemu operacyjnego: ${os.build}
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-xs text-muted" style={{ margin: 0 }}>Nie udało się pobrać rankingu globalnego. Kliknij przycisk powyżej, aby ponowić próbę.</p>
+                    <p className="text-xs text-muted" style={{ margin: 0 }}>
+                      Nie udało się pobrać rankingu globalnego. Kliknij przycisk powyżej, aby
+                      ponowić próbę.
+                    </p>
                   </div>
                 )}
               </div>
@@ -681,13 +813,21 @@ Kompilacja systemu operacyjnego: ${os.build}
           </div>
         ) : (
           !benchmarking && (
-            <div className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-4 fade-in" style={{ background: 'rgba(255, 255, 255, 0.01)', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.03)' }}>
+            <div
+              className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-4 fade-in"
+              style={{
+                background: 'rgba(255, 255, 255, 0.01)',
+                borderRadius: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.03)'
+              }}
+            >
               <TrendingUp size={48} className="text-muted opacity-40 animate-pulse" />
               <h3 className="m-0 text-white font-black text-lg font-outfit uppercase tracking-wider">
                 Brak wyników testu
               </h3>
               <p className="text-muted text-sm max-w-[400px] m-0">
-                Uruchom test wydajności, aby zmierzyć szybkość procesora, pamięci RAM oraz dysku twardego. Wyniki zostaną zapisane w historii urządzenia.
+                Uruchom test wydajności, aby zmierzyć szybkość procesora, pamięci RAM oraz dysku
+                twardego. Wyniki zostaną zapisane w historii urządzenia.
               </p>
               <button className="benchmark-btn mt-2" onClick={handleRunBenchmark}>
                 <Play size={14} fill="white" className="mr-2" />
@@ -1066,9 +1206,16 @@ Kompilacja systemu operacyjnego: ${os.build}
               Specyfikacja Online (DDG)
             </h4>
             <div className="flex flex-col gap-2 pt-2">
-              <DetailRow label="Gniazdo (Socket)" value={cpuSpecs?.socket || cpu.socket || 'Lokalne / Dynamiczne'} />
+              <DetailRow
+                label="Gniazdo (Socket)"
+                value={cpuSpecs?.socket || cpu.socket || 'Lokalne / Dynamiczne'}
+              />
               <DetailRow label="Litografia" value={cpuSpecs?.lithography || 'Wczytywanie...'} />
-              <DetailRow label="Maks. Pobór (TDP)" value={cpuSpecs?.tdp || 'Wczytywanie...'} highlight />
+              <DetailRow
+                label="Maks. Pobór (TDP)"
+                value={cpuSpecs?.tdp || 'Wczytywanie...'}
+                highlight
+              />
               <DetailRow label="Nazwa Kodowa" value={cpuSpecs?.codename || 'Wczytywanie...'} />
               <DetailRow label="Data Premiery" value={cpuSpecs?.releaseDate || 'Wczytywanie...'} />
               <DetailRow label="Cena Sugerowana" value={cpuSpecs?.msrp || 'Wczytywanie...'} />
@@ -1795,14 +1942,46 @@ Kompilacja systemu operacyjnego: ${os.build}
                 Specyfikacja Online RAM
               </h4>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, justifyContent: 'center' }}>
-              <DetailRow label="Typ Pamięci" value={ramSpecs?.type || staticData.memory?.layout?.[0]?.type || 'DDR5'} highlight />
-              <DetailRow label="Taktowanie" value={ramSpecs?.speed || (staticData.memory?.layout?.[0]?.clockSpeed ? `${staticData.memory.layout[0].clockSpeed} MT/s` : '5600 MT/s')} highlight />
-              <DetailRow label="Napięcie Robocze" value={ramSpecs?.voltage || (staticData.memory?.layout?.[0]?.voltage ? `${staticData.memory.layout[0].voltage} V` : '1.25 V')} />
-              <DetailRow label="Opóźnienia (Latency)" value={ramSpecs?.latency || 'CL36'} highlight />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                flex: 1,
+                justifyContent: 'center'
+              }}
+            >
+              <DetailRow
+                label="Typ Pamięci"
+                value={ramSpecs?.type || staticData.memory?.layout?.[0]?.type || 'DDR5'}
+                highlight
+              />
+              <DetailRow
+                label="Taktowanie"
+                value={
+                  ramSpecs?.speed ||
+                  (staticData.memory?.layout?.[0]?.clockSpeed
+                    ? `${staticData.memory.layout[0].clockSpeed} MT/s`
+                    : '5600 MT/s')
+                }
+                highlight
+              />
+              <DetailRow
+                label="Napięcie Robocze"
+                value={
+                  ramSpecs?.voltage ||
+                  (staticData.memory?.layout?.[0]?.voltage
+                    ? `${staticData.memory.layout[0].voltage} V`
+                    : '1.25 V')
+                }
+              />
+              <DetailRow
+                label="Opóźnienia (Latency)"
+                value={ramSpecs?.latency || 'CL36'}
+                highlight
+              />
             </div>
           </div>
-
         </div>
       </div>
     )
@@ -2355,21 +2534,26 @@ Kompilacja systemu operacyjnego: ${os.build}
                 <DetailRow
                   label="Architektura"
                   value={
-                    gpuSpecs?.architecture || (gpu.vendor?.includes('NVIDIA') ? 'Ada Lovelace' : 'Dedykowana architektura')
+                    gpuSpecs?.architecture ||
+                    (gpu.vendor?.includes('NVIDIA') ? 'Ada Lovelace' : 'Dedykowana architektura')
                   }
                 />
                 <DetailRow
                   label="Technologia"
-                  value={gpuSpecs?.lithography || (gpu.vendor?.includes('NVIDIA') ? '4 nm' : '5 nm')}
+                  value={
+                    gpuSpecs?.lithography || (gpu.vendor?.includes('NVIDIA') ? '4 nm' : '5 nm')
+                  }
                 />
                 <DetailRow label="Magistrala" value={gpu.bus || 'PCIe x16 4.0'} />
+                <DetailRow label="Pobór Mocy (TDP)" value={gpuSpecs?.tdp || '150W'} highlight />
                 <DetailRow
-                  label="Pobór Mocy (TDP)"
-                  value={gpuSpecs?.tdp || '150W'}
-                  highlight
+                  label="Data Wydania"
+                  value={gpuSpecs?.releaseDate || 'Ostatnie 2 lata'}
                 />
-                <DetailRow label="Data Wydania" value={gpuSpecs?.releaseDate || 'Ostatnie 2 lata'} />
-                <DetailRow label="Sugerowana Cena (MSRP)" value={gpuSpecs?.msrp || 'Cena rynkowa'} />
+                <DetailRow
+                  label="Sugerowana Cena (MSRP)"
+                  value={gpuSpecs?.msrp || 'Cena rynkowa'}
+                />
               </div>
             </div>
 
@@ -2379,7 +2563,10 @@ Kompilacja systemu operacyjnego: ${os.build}
                 <DetailRow label="Pojemność VRAM" value={`${gpu.vram || 8192} MB`} highlight />
                 <DetailRow label="Typ Pamięci" value={gpuSpecs?.vramType || 'GDDR6'} />
                 <DetailRow label="Szyna Pamięci" value={gpuSpecs?.busWidth || '128-bit'} />
-                <DetailRow label="Przepustowość" value={gpu.bus ? '504.2 GB/s' : 'Dynamiczny transfer'} />
+                <DetailRow
+                  label="Przepustowość"
+                  value={gpu.bus ? '504.2 GB/s' : 'Dynamiczny transfer'}
+                />
               </div>
             </div>
 
@@ -2601,9 +2788,17 @@ Kompilacja systemu operacyjnego: ${os.build}
             </div>
 
             <div className="flex flex-col gap-4">
-              <DetailRow label="Interfejs" value={activeIface.iface || 'Brak aktywnego interfejsu'} highlight />
+              <DetailRow
+                label="Interfejs"
+                value={activeIface.iface || 'Brak aktywnego interfejsu'}
+                highlight
+              />
               <DetailRow label="Typ połączenia" value={activeIface.type || 'Ethernet / Wi-Fi'} />
-              <DetailRow label="Maksymalna prędkość" value={activeIface.speed ? `${activeIface.speed} Mbps` : '1000 Mbps'} highlight />
+              <DetailRow
+                label="Maksymalna prędkość"
+                value={activeIface.speed ? `${activeIface.speed} Mbps` : '1000 Mbps'}
+                highlight
+              />
               <DetailRow label="Adres MAC" value={activeIface.mac || 'N/A'} />
               <DetailRow label="Adres IPv4" value={activeIface.ip4 || 'N/A'} />
             </div>
@@ -2630,9 +2825,20 @@ Kompilacja systemu operacyjnego: ${os.build}
             </div>
 
             <div className="flex flex-col gap-4">
-              <DetailRow label="Prędkość Maks. (Chip)" value={netSpecs?.maxSpeed || '1 Gbps / Auto'} highlight />
-              <DetailRow label="Interfejs Magistrali" value={netSpecs?.interface || 'PCI-Express / USB'} />
-              <DetailRow label="Kontroler (Chipset)" value={netSpecs?.chip || 'Realtek / Intel'} highlight />
+              <DetailRow
+                label="Prędkość Maks. (Chip)"
+                value={netSpecs?.maxSpeed || '1 Gbps / Auto'}
+                highlight
+              />
+              <DetailRow
+                label="Interfejs Magistrali"
+                value={netSpecs?.interface || 'PCI-Express / USB'}
+              />
+              <DetailRow
+                label="Kontroler (Chipset)"
+                value={netSpecs?.chip || 'Realtek / Intel'}
+                highlight
+              />
               <DetailRow label="Tryb Duplex" value="Full Duplex (Obsługa 10/100/1000)" />
               <DetailRow label="Stan Linku" value="Połączono" />
             </div>
@@ -2667,7 +2873,10 @@ Kompilacja systemu operacyjnego: ${os.build}
       <div className="fade-in flex flex-col gap-10 p-8 relative z-10 w-full mx-auto text-white">
         {/* Loading Overlay */}
         {loadingDrivers && (
-          <div className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-4" style={{ borderRadius: '24px' }}>
+          <div
+            className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-4"
+            style={{ borderRadius: '24px' }}
+          >
             <div className="loader"></div>
             <p className="text-muted font-bold animate-pulse">{driverMessage}</p>
           </div>
@@ -2676,7 +2885,13 @@ Kompilacja systemu operacyjnego: ${os.build}
         {!loadingDrivers && (
           <>
             {/* Driver Updates Box */}
-            <div className="system-details-box" style={{ border: '1px solid rgba(14, 165, 233, 0.15)', boxShadow: '0 0 25px rgba(14, 165, 233, 0.03)' }}>
+            <div
+              className="system-details-box"
+              style={{
+                border: '1px solid rgba(14, 165, 233, 0.15)',
+                boxShadow: '0 0 25px rgba(14, 165, 233, 0.03)'
+              }}
+            >
               <div className="system-box-header">
                 <div>
                   <h3 className="m-0 font-black text-xl font-outfit uppercase tracking-wider flex items-center gap-2">
@@ -2775,9 +2990,15 @@ Kompilacja systemu operacyjnego: ${os.build}
                       <span className="font-bold text-white truncate" title={drv.DeviceName}>
                         {drv.DeviceName}
                       </span>
-                      <span className="text-muted font-semibold uppercase">{drv.DeviceClass || 'Unknown'}</span>
-                      <span className="font-mono text-primary/80 font-bold">{drv.DriverVersion || 'N/A'}</span>
-                      <span className="text-right font-bold text-white/80">{drv.Manufacturer || 'OEM'}</span>
+                      <span className="text-muted font-semibold uppercase">
+                        {drv.DeviceClass || 'Unknown'}
+                      </span>
+                      <span className="font-mono text-primary/80 font-bold">
+                        {drv.DriverVersion || 'N/A'}
+                      </span>
+                      <span className="text-right font-bold text-white/80">
+                        {drv.Manufacturer || 'OEM'}
+                      </span>
                     </div>
                   ))}
                 </div>

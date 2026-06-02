@@ -8,7 +8,7 @@ export function setupRamCleanerIPC() {
   // Pobieranie statystyk RAM (używana, standby cache, wolna, całkowita)
   ipcMain.handle('get-ram-stats', async () => {
     return new Promise((resolve) => {
-      const psScript = 
+      const psScript =
         `$mem = Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory; ` +
         `$total = $mem.TotalVisibleMemorySize * 1024; ` +
         `$free = $mem.FreePhysicalMemory * 1024; ` +
@@ -33,20 +33,33 @@ export function setupRamCleanerIPC() {
       exec(`powershell -NoProfile -Command "${psScript.replace(/"/g, '\\"')}"`, (err, stdout) => {
         if (err || !stdout.trim()) {
           // Fallback na wypadek braku liczników
-          exec(`powershell -NoProfile -Command "Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory | ConvertTo-Json -Compress"`, (err2, stdout2) => {
-            if (err2 || !stdout2.trim()) {
-              resolve({ total: 16 * 1024 * 1024 * 1024, free: 8 * 1024 * 1024 * 1024, standby: 0, used: 8 * 1024 * 1024 * 1024 })
-              return
+          exec(
+            `powershell -NoProfile -Command "Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory | ConvertTo-Json -Compress"`,
+            (err2, stdout2) => {
+              if (err2 || !stdout2.trim()) {
+                resolve({
+                  total: 16 * 1024 * 1024 * 1024,
+                  free: 8 * 1024 * 1024 * 1024,
+                  standby: 0,
+                  used: 8 * 1024 * 1024 * 1024
+                })
+                return
+              }
+              try {
+                const parsed = JSON.parse(stdout2.trim())
+                const total = parsed.TotalVisibleMemorySize * 1024
+                const free = parsed.FreePhysicalMemory * 1024
+                resolve({ total, free, standby: 0, used: total - free })
+              } catch {
+                resolve({
+                  total: 16 * 1024 * 1024 * 1024,
+                  free: 8 * 1024 * 1024 * 1024,
+                  standby: 0,
+                  used: 8 * 1024 * 1024 * 1024
+                })
+              }
             }
-            try {
-              const parsed = JSON.parse(stdout2.trim())
-              const total = parsed.TotalVisibleMemorySize * 1024
-              const free = parsed.FreePhysicalMemory * 1024
-              resolve({ total, free, standby: 0, used: total - free })
-            } catch {
-              resolve({ total: 16 * 1024 * 1024 * 1024, free: 8 * 1024 * 1024 * 1024, standby: 0, used: 8 * 1024 * 1024 * 1024 })
-            }
-          })
+          )
           return
         }
 
@@ -54,7 +67,12 @@ export function setupRamCleanerIPC() {
           const parsed = JSON.parse(stdout.trim())
           resolve(parsed)
         } catch {
-          resolve({ total: 16 * 1024 * 1024 * 1024, free: 8 * 1024 * 1024 * 1024, standby: 0, used: 8 * 1024 * 1024 * 1024 })
+          resolve({
+            total: 16 * 1024 * 1024 * 1024,
+            free: 8 * 1024 * 1024 * 1024,
+            standby: 0,
+            used: 8 * 1024 * 1024 * 1024
+          })
         }
       })
     })
@@ -64,7 +82,7 @@ export function setupRamCleanerIPC() {
   ipcMain.handle('clean-ram', async (_, type: 'standby' | 'workingsets' | 'both') => {
     return new Promise((resolve) => {
       const tempScriptPath = path.join(os.tmpdir(), 'clean_ram.ps1')
-      
+
       let cleanCommands = ''
       if (type === 'standby' || type === 'both') {
         cleanCommands += '[RAMCleaner]::PurgeStandbyList()\n'

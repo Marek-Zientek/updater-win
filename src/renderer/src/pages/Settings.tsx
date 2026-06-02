@@ -271,7 +271,9 @@ export function Settings() {
           const content = evt.target.result
           const res = await window.api.auth.importUserProfile(content)
           if (res.success) {
-            alert('Profil i ustawienia zostały zaimportowane pomyślnie! Kliknij OK, aby odświeżyć aplikację.')
+            alert(
+              'Profil i ustawienia zostały zaimportowane pomyślnie! Kliknij OK, aby odświeżyć aplikację.'
+            )
             window.location.reload()
           } else {
             alert(res.error || 'Nieprawidłowy plik profilu.')
@@ -296,7 +298,9 @@ export function Settings() {
     try {
       const res = await window.api.auth.syncProfileToCloud(token)
       if (res.success) {
-        const timeStr = res.lastSyncedAt ? new Date(res.lastSyncedAt).toLocaleString('pl-PL') : new Date().toLocaleString('pl-PL')
+        const timeStr = res.lastSyncedAt
+          ? new Date(res.lastSyncedAt).toLocaleString('pl-PL')
+          : new Date().toLocaleString('pl-PL')
         setLastSyncedAt(timeStr)
         await window.api.saveSetting('last_synced_at', timeStr)
       } else {
@@ -359,11 +363,15 @@ export function Settings() {
           telemetryEnabled,
           autoSyncCloud
         },
-        hardware: hardwareInfo ? {
-          cpu: hardwareInfo.cpu?.brand || hardwareInfo.cpu?.name,
-          ram: hardwareInfo.ram?.total,
-          gpu: hardwareInfo.gpu?.name || (hardwareInfo.gpu?.controllers && hardwareInfo.gpu.controllers[0]?.model)
-        } : 'Brak danych sprzętowych'
+        hardware: hardwareInfo
+          ? {
+              cpu: hardwareInfo.cpu?.brand || hardwareInfo.cpu?.name,
+              ram: hardwareInfo.ram?.total,
+              gpu:
+                hardwareInfo.gpu?.name ||
+                (hardwareInfo.gpu?.controllers && hardwareInfo.gpu.controllers[0]?.model)
+            }
+          : 'Brak danych sprzętowych'
       }
 
       const res = await window.api.auth.submitSystemTelemetry(token, telemetryData)
@@ -524,20 +532,56 @@ export function Settings() {
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '8px 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '16px', flexWrap: 'wrap' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '20px', flexShrink: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.04)',
+                borderRadius: '16px',
+                padding: '16px',
+                flexWrap: 'wrap'
+              }}
+            >
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--color-primary), #a855f7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  fontSize: '20px',
+                  flexShrink: 0
+                }}
+              >
                 {user?.name ? user.name[0].toUpperCase() : 'A'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#fff', fontSize: '15px' }}>{user?.name || 'Zalogowany Administrator'}</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{user?.email || 'Brak powiązanego adresu email'}</div>
+                <div style={{ fontWeight: 700, color: '#fff', fontSize: '15px' }}>
+                  {user?.name || 'Zalogowany Administrator'}
+                </div>
+                <div
+                  style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}
+                >
+                  {user?.email || 'Brak powiązanego adresu email'}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   className="btn btn-secondary flex items-center gap-xs"
                   onClick={handleExportProfile}
                   title="Eksportuj ustawienia do pliku JSON"
-                  style={{ padding: '8px 12px', borderRadius: '10px', fontSize: '12px', gap: '6px' }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    gap: '6px'
+                  }}
                 >
                   <DownloadCloud size={14} />
                   <span>Kopia (Eksport)</span>
@@ -546,7 +590,15 @@ export function Settings() {
                   className="btn btn-primary flex items-center gap-xs"
                   onClick={handleImportProfile}
                   title="Importuj profil z pliku JSON"
-                  style={{ padding: '8px 12px', borderRadius: '10px', fontSize: '12px', gap: '6px', background: 'var(--color-primary)', color: '#000', fontWeight: '600' }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    gap: '6px',
+                    background: 'var(--color-primary)',
+                    color: '#000',
+                    fontWeight: '600'
+                  }}
                 >
                   <UploadCloud size={14} />
                   <span>Przywróć (Import)</span>
@@ -555,15 +607,48 @@ export function Settings() {
             </div>
 
             {/* Cloud Synchronization Panel */}
-            <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.15)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  marginBottom: '14px'
+                }}
+              >
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h4
+                    style={{
+                      margin: 0,
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
                     <Cloud size={16} color="var(--color-primary)" />
                     Synchronizacja Chmurowa
                   </h4>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                    Ostatnia synchronizacja: <strong style={{ color: 'var(--color-primary)' }}>{lastSyncedAt}</strong>
+                  <p
+                    style={{
+                      margin: '4px 0 0 0',
+                      fontSize: '12px',
+                      color: 'var(--color-text-muted)'
+                    }}
+                  >
+                    Ostatnia synchronizacja:{' '}
+                    <strong style={{ color: 'var(--color-primary)' }}>{lastSyncedAt}</strong>
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -571,7 +656,12 @@ export function Settings() {
                     className="btn btn-secondary flex items-center gap-xs"
                     onClick={handleSyncFromCloud}
                     disabled={syncingFromCloud || syncingToCloud}
-                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', gap: '6px' }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      gap: '6px'
+                    }}
                   >
                     {syncingFromCloud ? (
                       <RefreshCw size={12} className="animate-spin" />
@@ -584,7 +674,15 @@ export function Settings() {
                     className="btn btn-primary flex items-center gap-xs"
                     onClick={handleSyncToCloud}
                     disabled={syncingFromCloud || syncingToCloud}
-                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', gap: '6px', background: 'var(--color-primary)', color: '#000', fontWeight: 600 }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      gap: '6px',
+                      background: 'var(--color-primary)',
+                      color: '#000',
+                      fontWeight: 600
+                    }}
                   >
                     {syncingToCloud ? (
                       <RefreshCw size={12} className="animate-spin" />
@@ -597,16 +695,36 @@ export function Settings() {
               </div>
 
               {cloudSyncError && (
-                <div style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '12px' }}>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--color-danger)',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    marginBottom: '12px'
+                  }}
+                >
                   {cloudSyncError}
                 </div>
               )}
 
               {/* Toggles inside cloud panel */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  borderTop: '1px solid rgba(255,255,255,0.05)',
+                  paddingTop: '12px'
+                }}
+              >
                 <div className="setting-row" style={{ padding: 0 }}>
                   <div className="setting-info">
-                    <span className="setting-label" style={{ fontSize: '13px' }}>Automatyczna synchronizacja</span>
+                    <span className="setting-label" style={{ fontSize: '13px' }}>
+                      Automatyczna synchronizacja
+                    </span>
                     <span className="setting-desc" style={{ fontSize: '11px' }}>
                       Automatycznie synchronizuj profil z chmurą przy wprowadzaniu zmian
                     </span>
@@ -630,7 +748,9 @@ export function Settings() {
 
                 <div className="setting-row" style={{ padding: 0 }}>
                   <div className="setting-info">
-                    <span className="setting-label" style={{ fontSize: '13px' }}>Telemetria & Raportowanie</span>
+                    <span className="setting-label" style={{ fontSize: '13px' }}>
+                      Telemetria & Raportowanie
+                    </span>
                     <span className="setting-desc" style={{ fontSize: '11px' }}>
                       Wspieraj rozwój aplikacji wysyłając zanonimizowane statystyki wydajności
                     </span>
@@ -656,14 +776,45 @@ export function Settings() {
 
             {/* Diagnostics and Manual Telemetry */}
             {telemetryEnabled && (
-              <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.01)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4
+                      style={{
+                        margin: 0,
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
                       <Activity size={15} color="var(--color-secondary)" />
                       Zanonimizowany Raport Diagnostyczny
                     </h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    <p
+                      style={{
+                        margin: '2px 0 0 0',
+                        fontSize: '11px',
+                        color: 'var(--color-text-muted)'
+                      }}
+                    >
                       Wysyła konfigurację sprzętową (CPU/RAM/GPU) oraz status optymalizacji.
                     </p>
                   </div>
@@ -671,7 +822,12 @@ export function Settings() {
                     className="btn btn-secondary flex items-center gap-xs"
                     onClick={handleSubmitTelemetry}
                     disabled={submittingTelemetry}
-                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '11px', gap: '6px' }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      gap: '6px'
+                    }}
                   >
                     {submittingTelemetry ? (
                       <RefreshCw size={12} className="animate-spin" />
@@ -682,13 +838,33 @@ export function Settings() {
                 </div>
 
                 {telemetrySuccess && (
-                  <div style={{ fontSize: '11px', color: 'var(--color-success)', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.2)', marginTop: '10px' }}>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--color-success)',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      marginTop: '10px'
+                    }}
+                  >
                     Telemetria została pomyślnie przesłana i zanonimizowana na serwerze!
                   </div>
                 )}
 
                 {telemetryError && (
-                  <div style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', marginTop: '10px' }}>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--color-danger)',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      marginTop: '10px'
+                    }}
+                  >
                     {telemetryError}
                   </div>
                 )}
@@ -709,7 +885,8 @@ export function Settings() {
               <div className="setting-info">
                 <span className="setting-label">Serwer Zdalnego Monitoringu</span>
                 <span className="setting-desc">
-                  Uruchamia lokalny serwer HTTP umożliwiający podgląd stanu komputera i zdalne sterowanie z telefonu/przeglądarki
+                  Uruchamia lokalny serwer HTTP umożliwiający podgląd stanu komputera i zdalne
+                  sterowanie z telefonu/przeglądarki
                 </span>
               </div>
               <label className="switch">
@@ -736,29 +913,81 @@ export function Settings() {
                 disabled={loadingRemoteServer}
                 onChange={(e) => handlePortChange(parseInt(e.target.value, 10) || 9090)}
                 className="select-custom"
-                style={{ width: '100px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', borderRadius: '8px', padding: '6px' }}
+                style={{
+                  width: '100px',
+                  textAlign: 'center',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  padding: '6px'
+                }}
               />
             </div>
 
             {isRemoteServerActive && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.05)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(16, 185, 129, 0.15)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.05)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  border: '1px solid rgba(16, 185, 129, 0.15)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}
+              >
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-success)', boxShadow: '0 0 8px var(--color-success)' }}></span>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Status: Serwer Uruchomiony</span>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: 'var(--color-success)',
+                        boxShadow: '0 0 8px var(--color-success)'
+                      }}
+                    ></span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>
+                      Status: Serwer Uruchomiony
+                    </span>
                   </div>
-                  <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-primary)', fontWeight: 'bold', letterSpacing: '1px' }}>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      background: 'rgba(255,255,255,0.05)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: 'var(--color-primary)',
+                      fontWeight: 'bold',
+                      letterSpacing: '1px'
+                    }}
+                  >
                     PIN DOSTĘPU: {remoteServerPin}
                   </span>
                 </div>
 
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--color-text-muted)',
+                      display: 'block',
+                      marginBottom: '6px'
+                    }}
+                  >
                     Adresy podglądu w sieci lokalnej (LAN):
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {remoteServerIPs.length === 0 ? (
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Brak aktywnych połączeń sieciowych</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                        Brak aktywnych połączeń sieciowych
+                      </span>
                     ) : (
                       remoteServerIPs.map((ip, idx) => {
                         const url = `http://${ip}:${remoteServerPort}`
@@ -768,7 +997,14 @@ export function Settings() {
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontSize: '12px', color: 'var(--color-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--color-primary)',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
                           >
                             <Network size={12} />
                             <span>{url}</span>
@@ -782,21 +1018,52 @@ export function Settings() {
             )}
 
             {!isRemoteServerActive && !loadingRemoteServer && (
-              <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-muted)' }}></span>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Status: Serwer zatrzymany</span>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.01)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  border: '1px solid rgba(255,255,255,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: 'var(--color-muted)'
+                  }}
+                ></span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                  Status: Serwer zatrzymany
+                </span>
               </div>
             )}
 
             {loadingRemoteServer && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
                 <RefreshCw size={14} className="animate-spin" color="var(--color-primary)" />
-                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Konfigurowanie połączeń...</span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                  Konfigurowanie połączeń...
+                </span>
               </div>
             )}
 
             {remoteServerError && (
-              <div style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--color-danger)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}
+              >
                 {remoteServerError}
               </div>
             )}
@@ -1028,7 +1295,8 @@ export function Settings() {
             <div className="setting-info">
               <span className="setting-label">Automatyczne punkty przywracania</span>
               <span className="setting-desc">
-                Tworzy punkt przywracania systemu Windows przed deinstalacją bloatware lub modyfikacją telemetrii
+                Tworzy punkt przywracania systemu Windows przed deinstalacją bloatware lub
+                modyfikacją telemetrii
               </span>
             </div>
             <label className="switch">
@@ -1132,7 +1400,8 @@ export function Settings() {
             <div className="setting-info">
               <span className="setting-label">Monitorowanie temperatury w tle</span>
               <span className="setting-desc">
-                Cyklicznie bada temperaturę procesora (CPU) i karty graficznej (GPU) w celu wykrycia przegrzania
+                Cyklicznie bada temperaturę procesora (CPU) i karty graficznej (GPU) w celu wykrycia
+                przegrzania
               </span>
             </div>
             <label className="switch">
@@ -1156,7 +1425,8 @@ export function Settings() {
             <div className="setting-info">
               <span className="setting-label">Próg temperatury ostrzeżenia</span>
               <span className="setting-desc">
-                Temperatura, po której przekroczeniu na dłużej niż 30 sekund otrzymasz powiadomienie systemowe
+                Temperatura, po której przekroczeniu na dłużej niż 30 sekund otrzymasz powiadomienie
+                systemowe
               </span>
             </div>
             <select
@@ -1249,7 +1519,9 @@ export function Settings() {
           <div className="setting-row flex-col" style={{ alignItems: 'stretch', gap: '16px' }}>
             <div className="setting-info">
               <span className="setting-label">Przezroczystość tła HUD</span>
-              <span className="setting-desc">Dostosuj przezroczystość tła (aktualna: {Math.round(parseFloat(hudOpacity) * 100)}%)</span>
+              <span className="setting-desc">
+                Dostosuj przezroczystość tła (aktualna: {Math.round(parseFloat(hudOpacity) * 100)}%)
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <input
@@ -1262,23 +1534,22 @@ export function Settings() {
                   setHudOpacity(e.target.value)
                 }}
                 onMouseUp={(e: any) =>
-                  handleSave(
-                    'hud_opacity',
-                    e.target.value,
-                    setHudOpacity,
-                    e.target.value
-                  )
+                  handleSave('hud_opacity', e.target.value, setHudOpacity, e.target.value)
                 }
                 style={{ flex: 1, accentColor: 'var(--color-primary)' }}
               />
-              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>{hudOpacity}</span>
+              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>
+                {hudOpacity}
+              </span>
             </div>
           </div>
 
           <div className="setting-row flex-col" style={{ alignItems: 'stretch', gap: '16px' }}>
             <div className="setting-info">
               <span className="setting-label">Kolor wiodący HUD (Barwa Hue)</span>
-              <span className="setting-desc">Dostosuj podstawową barwę HSL (aktualna: {hudHuePrimary}°)</span>
+              <span className="setting-desc">
+                Dostosuj podstawową barwę HSL (aktualna: {hudHuePrimary}°)
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <input
@@ -1291,23 +1562,22 @@ export function Settings() {
                   setHudHuePrimary(e.target.value)
                 }}
                 onMouseUp={(e: any) =>
-                  handleSave(
-                    'hud_hue_primary',
-                    e.target.value,
-                    setHudHuePrimary,
-                    e.target.value
-                  )
+                  handleSave('hud_hue_primary', e.target.value, setHudHuePrimary, e.target.value)
                 }
                 style={{ flex: 1, accentColor: `hsl(${hudHuePrimary}, 100%, 50%)` }}
               />
-              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>{hudHuePrimary}°</span>
+              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>
+                {hudHuePrimary}°
+              </span>
             </div>
           </div>
 
           <div className="setting-row flex-col" style={{ alignItems: 'stretch', gap: '16px' }}>
             <div className="setting-info">
               <span className="setting-label">Kolor pomocniczy HUD (Barwa Hue)</span>
-              <span className="setting-desc">Dostosuj wtórną barwę HSL (aktualna: {hudHueSecondary}°)</span>
+              <span className="setting-desc">
+                Dostosuj wtórną barwę HSL (aktualna: {hudHueSecondary}°)
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <input
@@ -1329,19 +1599,41 @@ export function Settings() {
                 }
                 style={{ flex: 1, accentColor: `hsl(${hudHueSecondary}, 100%, 50%)` }}
               />
-              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>{hudHueSecondary}°</span>
+              <span className="font-mono text-xs" style={{ width: '40px', textAlign: 'right' }}>
+                {hudHueSecondary}°
+              </span>
             </div>
           </div>
 
-          <div className="setting-row flex-col" style={{ alignItems: 'stretch', padding: '12px 0' }}>
+          <div
+            className="setting-row flex-col"
+            style={{ alignItems: 'stretch', padding: '12px 0' }}
+          >
             <div className="setting-info mb-sm">
               <span className="setting-label">Aktywne sensory w HUD</span>
               <span className="setting-desc">Wybierz metryki wyświetlane na nakładce HUD</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '12px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+                marginTop: '12px'
+              }}
+            >
               {/* CPU Sensor */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.15)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}
+              >
                 <span className="text-xs font-semibold text-white">Sensor CPU</span>
                 <label className="switch">
                   <input
@@ -1361,7 +1653,17 @@ export function Settings() {
               </div>
 
               {/* RAM Sensor */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.15)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}
+              >
                 <span className="text-xs font-semibold text-white">Sensor RAM</span>
                 <label className="switch">
                   <input
@@ -1381,7 +1683,17 @@ export function Settings() {
               </div>
 
               {/* GPU Sensor */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.15)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}
+              >
                 <span className="text-xs font-semibold text-white">Sensor GPU</span>
                 <label className="switch">
                   <input
@@ -1401,7 +1713,17 @@ export function Settings() {
               </div>
 
               {/* FPS Sensor */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.15)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}
+              >
                 <span className="text-xs font-semibold text-white">Klatki (FPS)</span>
                 <label className="switch">
                   <input
@@ -1421,7 +1743,17 @@ export function Settings() {
               </div>
 
               {/* Ping Sensor */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.15)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}
+              >
                 <span className="text-xs font-semibold text-white">Opóźnienie (Ping)</span>
                 <label className="switch">
                   <input
@@ -1475,24 +1807,79 @@ export function Settings() {
             Bezpieczeństwo & Informacje Prawne
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.6' }}>
-            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
-              <h4 style={{ margin: '0 0 8px 0', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+              lineHeight: '1.6'
+            }}
+          >
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.01)',
+                border: '1px solid rgba(255,255,255,0.03)',
+                borderRadius: '12px',
+                padding: '16px'
+              }}
+            >
+              <h4
+                style={{
+                  margin: '0 0 8px 0',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px'
+                }}
+              >
                 <ShieldCheck size={16} color="#10b981" />
                 Audyt Przechowywania Danych (Lokalna Baza)
               </h4>
               <p style={{ margin: 0 }}>
-                Aplikacja **UpdaterWindows** została zaprojektowana w architekturze <strong>Local-First</strong>. Wszystkie Twoje ustawienia, spersonalizowane listy oprogramowania oraz historia optymalizacji są zapisywane wyłącznie lokalnie w bazie danych SQLite (<code>database.db</code>) znajdującej się w Twoim katalogu profilu użytkownika (<code>AppData/Roaming</code>). Hasła do konta lokalnego są zabezpieczone przy użyciu kryptograficznej funkcji skrótu <strong>bcryptjs</strong> (koszt 10). Dane nie są nigdzie wysyłane automatycznie bez Twojej wyraźnej zgody.
+                Aplikacja **UpdaterWindows** została zaprojektowana w architekturze{' '}
+                <strong>Local-First</strong>. Wszystkie Twoje ustawienia, spersonalizowane listy
+                oprogramowania oraz historia optymalizacji są zapisywane wyłącznie lokalnie w bazie
+                danych SQLite (<code>database.db</code>) znajdującej się w Twoim katalogu profilu
+                użytkownika (<code>AppData/Roaming</code>). Hasła do konta lokalnego są
+                zabezpieczone przy użyciu kryptograficznej funkcji skrótu <strong>bcryptjs</strong>{' '}
+                (koszt 10). Dane nie są nigdzie wysyłane automatycznie bez Twojej wyraźnej zgody.
               </p>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
-              <h4 style={{ margin: '0 0 8px 0', color: 'white', fontSize: '13px' }}>Regulamin i Warunki Licencyjne</h4>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.01)',
+                border: '1px solid rgba(255,255,255,0.03)',
+                borderRadius: '12px',
+                padding: '16px'
+              }}
+            >
+              <h4 style={{ margin: '0 0 8px 0', color: 'white', fontSize: '13px' }}>
+                Regulamin i Warunki Licencyjne
+              </h4>
               <p style={{ margin: '0 0 10px 0' }}>
-                Oprogramowanie jest licencjonowane na warunkach licencji <strong>MIT</strong>. Masz prawo do bezpłatnego korzystania, modyfikacji oraz dystrybucji kodu.
+                Oprogramowanie jest licencjonowane na warunkach licencji <strong>MIT</strong>. Masz
+                prawo do bezpłatnego korzystania, modyfikacji oraz dystrybucji kodu.
               </p>
-              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
-{`Copyright (c) 2026 Marek Zientek
+              <div
+                style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  fontSize: '10px',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  color: 'var(--color-text-muted)',
+                  lineHeight: '1.4'
+                }}
+              >
+                {`Copyright (c) 2026 Marek Zientek
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

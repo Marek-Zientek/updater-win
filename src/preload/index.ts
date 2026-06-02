@@ -51,10 +51,13 @@ const api = {
   toggleStartupApp: (name: string, enabled: boolean) =>
     ipcRenderer.invoke('toggle-startup-app', name, enabled),
   getSystemServices: () => ipcRenderer.invoke('get-system-services'),
-  toggleSystemService: (serviceName: string, action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled') =>
-    ipcRenderer.invoke('toggle-system-service', serviceName, action),
+  toggleSystemService: (
+    serviceName: string,
+    action: 'start' | 'stop' | 'automatic' | 'manual' | 'disabled'
+  ) => ipcRenderer.invoke('toggle-system-service', serviceName, action),
   scanDiskSpace: () => ipcRenderer.invoke('scan-disk-space'),
-  deleteFileDiagnostics: (filePath: string) => ipcRenderer.invoke('delete-file-diagnostics', filePath),
+  deleteFileDiagnostics: (filePath: string) =>
+    ipcRenderer.invoke('delete-file-diagnostics', filePath),
   checkDriverAssistants: () => ipcRenderer.invoke('check-driver-assistants'),
   launchDriverAssistant: (wingetId: string) =>
     ipcRenderer.invoke('launch-driver-assistant', wingetId),
@@ -66,11 +69,10 @@ const api = {
   getBloatwareApps: () => ipcRenderer.invoke('get-bloatware-apps'),
   removeBloatwareApp: (packageFullName: string) =>
     ipcRenderer.invoke('remove-bloatware-app', packageFullName),
-  scanLeftovers: (packageName: string) =>
-    ipcRenderer.invoke('scan-leftovers', packageName),
+  scanLeftovers: (packageName: string) => ipcRenderer.invoke('scan-leftovers', packageName),
   cleanLeftovers: (files: string[], registry: string[]) =>
     ipcRenderer.invoke('clean-leftovers', files, registry),
-   pingDnsServers: () => ipcRenderer.invoke('ping-dns-servers'),
+  pingDnsServers: () => ipcRenderer.invoke('ping-dns-servers'),
   getDnsConfig: () => ipcRenderer.invoke('get-dns-config'),
   setDnsServers: (interfaceIndex: number, primary: string, secondary: string) =>
     ipcRenderer.invoke('set-dns-servers', interfaceIndex, primary, secondary),
@@ -109,13 +111,13 @@ const api = {
   getGameBoosterStatus: () => ipcRenderer.invoke('get-game-booster-status'),
   toggleGameBooster: (enable: boolean) => ipcRenderer.invoke('toggle-game-booster', enable),
   getMonitoredGames: () => ipcRenderer.invoke('get-monitored-games'),
-  addCustomGame: (game: { name: string; exe: string }) => ipcRenderer.invoke('add-custom-game', game),
+  addCustomGame: (game: { name: string; exe: string }) =>
+    ipcRenderer.invoke('add-custom-game', game),
   deleteCustomGame: (exe: string) => ipcRenderer.invoke('delete-custom-game', exe),
   runHardwareBenchmark: () => ipcRenderer.invoke('run-hardware-benchmark'),
   getGlobalBenchmarkRankings: (cpuModel: string, userScore: number) =>
     ipcRenderer.invoke('get-global-benchmark-rankings', cpuModel, userScore),
-  uninstallApp: (wingetId: string) =>
-    ipcRenderer.invoke('uninstall-app', wingetId),
+  uninstallApp: (wingetId: string) => ipcRenderer.invoke('uninstall-app', wingetId),
   runElevatedUninstall: (wingetId: string) =>
     ipcRenderer.invoke('run-elevated-uninstall', wingetId),
   scanWin32Leftovers: (appName: string, publisher: string) =>
@@ -128,10 +130,12 @@ const api = {
     logout: (token: string) => ipcRenderer.invoke('auth-logout', token),
     verifySession: (token: string) => ipcRenderer.invoke('auth-verify-session', token),
     exportUserProfile: (userId?: string) => ipcRenderer.invoke('export-user-profile', userId),
-    importUserProfile: (profileJson: string) => ipcRenderer.invoke('import-user-profile', profileJson),
+    importUserProfile: (profileJson: string) =>
+      ipcRenderer.invoke('import-user-profile', profileJson),
     syncProfileToCloud: (token: string) => ipcRenderer.invoke('sync-profile-to-cloud', token),
     syncProfileFromCloud: (token: string) => ipcRenderer.invoke('sync-profile-from-cloud', token),
-    submitSystemTelemetry: (token: string, data: any) => ipcRenderer.invoke('submit-system-telemetry', token, data)
+    submitSystemTelemetry: (token: string, data: any) =>
+      ipcRenderer.invoke('submit-system-telemetry', token, data)
   },
   getHardwareInfo: () => ipcRenderer.invoke('get-static-hardware'),
   getHardwareSpecsheet: (type: 'cpu' | 'gpu' | 'ram' | 'network', modelName: string) =>
@@ -140,7 +144,8 @@ const api = {
   toggleRemoteServer: (enable: boolean, port: number) =>
     ipcRenderer.invoke('toggle-remote-server', enable, port),
   diagnostics: {
-    startScan: (type: 'sfc' | 'dism' | 'audit') => ipcRenderer.invoke('start-diagnostics-scan', type),
+    startScan: (type: 'sfc' | 'dism' | 'audit') =>
+      ipcRenderer.invoke('start-diagnostics-scan', type),
     getProgress: () => ipcRenderer.invoke('get-diagnostics-progress'),
     cancelScan: () => ipcRenderer.invoke('cancel-diagnostics-scan'),
     getBsodLogs: () => ipcRenderer.invoke('get-bsod-logs')
@@ -148,6 +153,14 @@ const api = {
   ram: {
     getRamStats: () => ipcRenderer.invoke('get-ram-stats'),
     cleanRam: (type: 'standby' | 'workingsets' | 'both') => ipcRenderer.invoke('clean-ram', type)
+  },
+  winUpdate: {
+    getStatus: () => ipcRenderer.invoke('get-windows-update-status'),
+    pauseUpdates: (days: number) => ipcRenderer.invoke('pause-windows-updates', days),
+    resumeUpdates: () => ipcRenderer.invoke('resume-windows-updates'),
+    getHistory: () => ipcRenderer.invoke('get-windows-update-history'),
+    uninstallUpdate: (kbNumber: string) => ipcRenderer.invoke('uninstall-windows-update', kbNumber),
+    clearCache: () => ipcRenderer.invoke('clear-windows-update-cache')
   }
 }
 

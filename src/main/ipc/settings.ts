@@ -85,7 +85,7 @@ async function syncTaskScheduler(): Promise<void> {
  */
 export function setupSettingsIPC(): void {
   // Uruchom synchronizację na starcie
-  syncTaskScheduler().catch(err => console.error('[Task Scheduler] Initial sync failed:', err))
+  syncTaskScheduler().catch((err) => console.error('[Task Scheduler] Initial sync failed:', err))
 
   // Zsynchronizuj autostart przy uruchomieniu aplikacji
   getSettingInternal('open_at_login', 'false')
@@ -112,7 +112,7 @@ export function setupSettingsIPC(): void {
   ipcMain.handle('save-setting', async (_, key: string, value: string) => {
     try {
       await saveSettingInternal(key, value)
-      
+
       // Zsynchronizuj harmonogram jeśli zmieniono powiązane ustawienia
       const schedulerKeys = [
         'auto_update_enabled',
@@ -131,7 +131,7 @@ export function setupSettingsIPC(): void {
           args: ['--hidden']
         })
       }
-      
+
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message }

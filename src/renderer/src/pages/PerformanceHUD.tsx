@@ -111,14 +111,30 @@ export function PerformanceHUD() {
 
     // Wczytywanie ustawień HUD
     const fetchSettings = () => {
-      window.api.getSetting('hud_opacity', '0.72').then((res) => setHudOpacity(parseFloat(res.value || '0.72')))
-      window.api.getSetting('hud_hue_primary', '180').then((res) => setHudHuePrimary(parseInt(res.value || '180', 10)))
-      window.api.getSetting('hud_hue_secondary', '280').then((res) => setHudHueSecondary(parseInt(res.value || '280', 10)))
-      window.api.getSetting('hud_sensor_cpu', 'true').then((res) => setShowCpu(res.value === 'true'))
-      window.api.getSetting('hud_sensor_ram', 'true').then((res) => setShowRam(res.value === 'true'))
-      window.api.getSetting('hud_sensor_gpu', 'true').then((res) => setShowGpu(res.value === 'true'))
-      window.api.getSetting('hud_sensor_fps', 'true').then((res) => setShowFps(res.value === 'true'))
-      window.api.getSetting('hud_sensor_ping', 'true').then((res) => setShowPing(res.value === 'true'))
+      window.api
+        .getSetting('hud_opacity', '0.72')
+        .then((res) => setHudOpacity(parseFloat(res.value || '0.72')))
+      window.api
+        .getSetting('hud_hue_primary', '180')
+        .then((res) => setHudHuePrimary(parseInt(res.value || '180', 10)))
+      window.api
+        .getSetting('hud_hue_secondary', '280')
+        .then((res) => setHudHueSecondary(parseInt(res.value || '280', 10)))
+      window.api
+        .getSetting('hud_sensor_cpu', 'true')
+        .then((res) => setShowCpu(res.value === 'true'))
+      window.api
+        .getSetting('hud_sensor_ram', 'true')
+        .then((res) => setShowRam(res.value === 'true'))
+      window.api
+        .getSetting('hud_sensor_gpu', 'true')
+        .then((res) => setShowGpu(res.value === 'true'))
+      window.api
+        .getSetting('hud_sensor_fps', 'true')
+        .then((res) => setShowFps(res.value === 'true'))
+      window.api
+        .getSetting('hud_sensor_ping', 'true')
+        .then((res) => setShowPing(res.value === 'true'))
     }
 
     fetchDynamicMetrics()
@@ -143,12 +159,14 @@ export function PerformanceHUD() {
   return (
     <div
       className="hud-overlay-container"
-      style={{
-        background: `rgba(11, 12, 16, ${hudOpacity})`,
-        border: '1.5px solid rgba(255, 255, 255, 0.08)',
-        '--color-primary': `hsl(${hudHuePrimary}, 100%, 60%)`,
-        '--color-secondary': `hsl(${hudHueSecondary}, 100%, 65%)`
-      } as any}
+      style={
+        {
+          background: `rgba(11, 12, 16, ${hudOpacity})`,
+          border: '1.5px solid rgba(255, 255, 255, 0.08)',
+          '--color-primary': `hsl(${hudHuePrimary}, 100%, 60%)`,
+          '--color-secondary': `hsl(${hudHueSecondary}, 100%, 65%)`
+        } as any
+      }
     >
       <header className="hud-header">
         <Activity size={14} className="pulse-icon" />

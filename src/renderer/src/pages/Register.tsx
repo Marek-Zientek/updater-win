@@ -70,7 +70,9 @@ export function Register() {
           )}
 
           <div className="flex flex-col gap-sm">
-            <label style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>Imię / Nazwa administratora</label>
+            <label style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+              Imię / Nazwa administratora
+            </label>
             <input
               type="text"
               value={name}

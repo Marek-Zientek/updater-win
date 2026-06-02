@@ -1,11 +1,5 @@
 import { useState } from 'react'
-import {
-  DownloadCloud,
-  CheckCircle,
-  AlertTriangle,
-  PlayCircle,
-  Play
-} from 'lucide-react'
+import { DownloadCloud, CheckCircle, AlertTriangle, PlayCircle, Play } from 'lucide-react'
 
 interface InstallableApp {
   id: string
@@ -70,7 +64,8 @@ const APPS_CATALOG: InstallableApp[] = [
     name: 'Rufus',
     wingetId: 'Rufus.Rufus',
     category: 'Narzędzia',
-    description: 'Małe narzędzie do łatwego tworzenia startowych dysków USB (np. z systemem Windows).'
+    description:
+      'Małe narzędzie do łatwego tworzenia startowych dysków USB (np. z systemem Windows).'
   },
   {
     id: 'spotify',
@@ -141,12 +136,12 @@ interface InstallationQueueItem {
 export function MultiInstaller() {
   const [selectedAppIds, setSelectedAppIds] = useState<string[]>([])
   const [activeFilter, setActiveFilter] = useState<string>('all')
-  
+
   // Kolejka instalacji
   const [installQueue, setInstallQueue] = useState<InstallationQueueItem[]>([])
   const [installActive, setInstallActive] = useState(false)
   const [currentInstallingIndex, setCurrentInstallingIndex] = useState<number | null>(null)
-  
+
   const [toastMessage, setToastMessage] = useState<{
     text: string
     type: 'success' | 'error'
@@ -190,11 +185,11 @@ export function MultiInstaller() {
 
     setInstallQueue(queue)
     setInstallActive(true)
-    
+
     // Rozpocznij pętlę instalacyjną sekwencyjnie
     for (let i = 0; i < queue.length; i++) {
       setCurrentInstallingIndex(i)
-      
+
       // Zmień status na installing
       setInstallQueue((prev) =>
         prev.map((item, idx) => (idx === i ? { ...item, status: 'installing' as AppStatus } : item))
@@ -202,7 +197,7 @@ export function MultiInstaller() {
 
       const targetApp = queue[i].app
       console.log(`[MultiInstaller] Installing ${targetApp.name} (${targetApp.wingetId})...`)
-      
+
       try {
         const res = await window.api.installApp({
           wingetId: targetApp.wingetId,
@@ -217,10 +212,10 @@ export function MultiInstaller() {
           )
         } else {
           // Błąd - np. wymaga UAC lub błąd sieci
-          const errorMsg = res.requiresElevation 
-            ? 'Wymaga administratora. Uruchom aplikację jako administrator lub spróbuj zainstalować ręcznie.' 
+          const errorMsg = res.requiresElevation
+            ? 'Wymaga administratora. Uruchom aplikację jako administrator lub spróbuj zainstalować ręcznie.'
             : res.error || 'Błąd instalacji'
-            
+
           setInstallQueue((prev) =>
             prev.map((item, idx) =>
               idx === i ? { ...item, status: 'failed' as AppStatus, error: errorMsg } : item
@@ -230,7 +225,9 @@ export function MultiInstaller() {
       } catch (err: any) {
         setInstallQueue((prev) =>
           prev.map((item, idx) =>
-            idx === i ? { ...item, status: 'failed' as AppStatus, error: err.message || 'Błąd krytyczny' } : item
+            idx === i
+              ? { ...item, status: 'failed' as AppStatus, error: err.message || 'Błąd krytyczny' }
+              : item
           )
         )
       }
@@ -254,15 +251,47 @@ export function MultiInstaller() {
         return <span className="status-badge disabled">Oczekuje</span>
       case 'installing':
         return (
-          <span className="status-badge active flex items-center gap-xs" style={{ background: 'rgba(69, 243, 255, 0.1)', color: 'var(--color-primary)', borderColor: 'rgba(69, 243, 255, 0.2)' }}>
-            <div className="loader-btn-spin" style={{ width: '10px', height: '10px', borderTopColor: 'var(--color-primary)' }}></div>
+          <span
+            className="status-badge active flex items-center gap-xs"
+            style={{
+              background: 'rgba(69, 243, 255, 0.1)',
+              color: 'var(--color-primary)',
+              borderColor: 'rgba(69, 243, 255, 0.2)'
+            }}
+          >
+            <div
+              className="loader-btn-spin"
+              style={{ width: '10px', height: '10px', borderTopColor: 'var(--color-primary)' }}
+            ></div>
             Instalowanie...
           </span>
         )
       case 'success':
-        return <span className="status-badge active" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.2)' }}>Zainstalowano</span>
+        return (
+          <span
+            className="status-badge active"
+            style={{
+              background: 'rgba(16, 185, 129, 0.1)',
+              color: '#34d399',
+              borderColor: 'rgba(16, 185, 129, 0.2)'
+            }}
+          >
+            Zainstalowano
+          </span>
+        )
       case 'failed':
-        return <span className="status-badge" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.2)' }}>Błąd</span>
+        return (
+          <span
+            className="status-badge"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: '#fca5a5',
+              borderColor: 'rgba(239, 68, 68, 0.2)'
+            }}
+          >
+            Błąd
+          </span>
+        )
       default:
         return null
     }
@@ -273,9 +302,12 @@ export function MultiInstaller() {
       {/* Header */}
       <header className="flex items-center justify-between mb-lg">
         <div>
-          <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 800 }}>Szybki Instalator Aplikacji</h1>
+          <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 800 }}>
+            Szybki Instalator Aplikacji
+          </h1>
           <p className="text-muted" style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
-            Zaznacz potrzebne programy i zainstaluj je automatycznie, całkowicie cicho w tle za pomocą WinGet
+            Zaznacz potrzebne programy i zainstaluj je automatycznie, całkowicie cicho w tle za
+            pomocą WinGet
           </p>
         </div>
       </header>
@@ -333,7 +365,9 @@ export function MultiInstaller() {
                     borderRadius: '16px',
                     cursor: installActive ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
-                    border: isChecked ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.05)',
+                    border: isChecked
+                      ? '1px solid var(--color-primary)'
+                      : '1px solid rgba(255,255,255,0.05)',
                     background: isChecked ? 'rgba(69, 243, 255, 0.02)' : 'rgba(255,255,255,0.01)'
                   }}
                 >
@@ -346,13 +380,26 @@ export function MultiInstaller() {
                     style={{ marginTop: '3px' }}
                   />
                   <div className="flex-1">
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700, color: '#fff' }}>
+                    <h4
+                      style={{
+                        margin: '0 0 4px 0',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        color: '#fff'
+                      }}
+                    >
                       {app.name}
                     </h4>
-                    <p className="text-muted text-xs mb-xs" style={{ margin: '4px 0', lineHeight: 1.4 }}>
+                    <p
+                      className="text-muted text-xs mb-xs"
+                      style={{ margin: '4px 0', lineHeight: 1.4 }}
+                    >
                       {app.description}
                     </p>
-                    <span className="text-muted font-mono" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
+                    <span
+                      className="text-muted font-mono"
+                      style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}
+                    >
                       ID: {app.wingetId}
                     </span>
                   </div>
@@ -366,13 +413,19 @@ export function MultiInstaller() {
         <div className="glass-panel sidebar-panel flex flex-col justify-between">
           <div className="flex flex-col h-full justify-between">
             <div>
-              <h3 className="flex items-center gap-sm mb-md" style={{ fontSize: '16px', margin: 0, fontWeight: 700 }}>
+              <h3
+                className="flex items-center gap-sm mb-md"
+                style={{ fontSize: '16px', margin: 0, fontWeight: 700 }}
+              >
                 <DownloadCloud size={18} style={{ color: 'var(--color-primary)' }} />
                 Kolejka instalacji
               </h3>
-              
+
               {installQueue.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-xl text-center text-muted" style={{ gap: '12px' }}>
+                <div
+                  className="flex flex-col items-center justify-center py-xl text-center text-muted"
+                  style={{ gap: '12px' }}
+                >
                   <PlayCircle size={40} className="text-muted mb-xs" />
                   <p className="font-semibold text-sm" style={{ margin: 0 }}>
                     Kolejka jest pusta
@@ -382,7 +435,16 @@ export function MultiInstaller() {
                   </p>
                 </div>
               ) : (
-                <div className="queue-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto' }}>
+                <div
+                  className="queue-list"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    maxHeight: '360px',
+                    overflowY: 'auto'
+                  }}
+                >
                   {installQueue.map((item, idx) => (
                     <div
                       key={item.app.id}
@@ -390,8 +452,14 @@ export function MultiInstaller() {
                       style={{
                         padding: '12px',
                         borderRadius: '12px',
-                        background: currentInstallingIndex === idx ? 'rgba(69, 243, 255, 0.03)' : 'rgba(255,255,255,0.01)',
-                        border: currentInstallingIndex === idx ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.04)'
+                        background:
+                          currentInstallingIndex === idx
+                            ? 'rgba(69, 243, 255, 0.03)'
+                            : 'rgba(255,255,255,0.01)',
+                        border:
+                          currentInstallingIndex === idx
+                            ? '1px solid var(--color-primary)'
+                            : '1px solid rgba(255,255,255,0.04)'
                       }}
                     >
                       <div className="flex items-center justify-between">
@@ -399,7 +467,10 @@ export function MultiInstaller() {
                         {getStatusBadge(item.status)}
                       </div>
                       {item.error && (
-                        <p className="text-red-300 text-[10px] mt-xs" style={{ margin: '4px 0 0 0', color: '#ef4444', lineHeight: 1.3 }}>
+                        <p
+                          className="text-red-300 text-[10px] mt-xs"
+                          style={{ margin: '4px 0 0 0', color: '#ef4444', lineHeight: 1.3 }}
+                        >
                           {item.error}
                         </p>
                       )}
@@ -420,11 +491,27 @@ export function MultiInstaller() {
                   <span>Zainstaluj wybrane ({selectedAppIds.length})</span>
                 </button>
               )}
-              
+
               {installActive && (
-                <div className="flex items-center justify-center gap-sm p-md glass-panel" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '12px' }}>
-                  <div className="loader-btn-spin" style={{ width: '16px', height: '16px', borderTopColor: 'var(--color-primary)' }}></div>
-                  <span className="text-xs text-muted font-medium">Instalowanie aplikacji... Proszę czekać.</span>
+                <div
+                  className="flex items-center justify-center gap-sm p-md glass-panel"
+                  style={{
+                    background: 'rgba(255,255,255,0.01)',
+                    border: '1px solid rgba(255,255,255,0.03)',
+                    borderRadius: '12px'
+                  }}
+                >
+                  <div
+                    className="loader-btn-spin"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderTopColor: 'var(--color-primary)'
+                    }}
+                  ></div>
+                  <span className="text-xs text-muted font-medium">
+                    Instalowanie aplikacji... Proszę czekać.
+                  </span>
                 </div>
               )}
             </div>

@@ -27,7 +27,13 @@ function mapHardwareToWinget(driver: any): string | null {
     if (cls === 'display') {
       return 'Intel.GraphicsDriver'
     }
-    if (name.includes('wi-fi') || name.includes('wireless') || name.includes('dual band') || name.includes('centrino') || cls === 'net') {
+    if (
+      name.includes('wi-fi') ||
+      name.includes('wireless') ||
+      name.includes('dual band') ||
+      name.includes('centrino') ||
+      cls === 'net'
+    ) {
       if (name.includes('bluetooth') || name.includes('bt')) {
         return 'Intel.Bluetooth'
       }

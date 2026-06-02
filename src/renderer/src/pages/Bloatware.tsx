@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Trash2, ShieldAlert, CheckCircle, RefreshCw, AlertTriangle, Info, Sparkles, Folder, Database } from 'lucide-react'
+import {
+  Trash2,
+  ShieldAlert,
+  CheckCircle,
+  RefreshCw,
+  AlertTriangle,
+  Info,
+  Sparkles,
+  Folder,
+  Database
+} from 'lucide-react'
 
 interface BloatwareApp {
   name: string
@@ -37,15 +47,20 @@ export function Bloatware() {
 
   const handleRemoveApp = async (app: BloatwareApp) => {
     setRemovingApp(app.packageFullName)
-    
+
     try {
       const autoRestoreRes = await window.api.getSetting('auto_restore_point', 'true')
       if (autoRestoreRes.value === 'true') {
         setCreatingRestorePoint(true)
-        setRestorePointStatus('Inicjowanie punktu przywracania... Zaakceptuj monit administratora (UAC) na pasku zadań.')
+        setRestorePointStatus(
+          'Inicjowanie punktu przywracania... Zaakceptuj monit administratora (UAC) na pasku zadań.'
+        )
         const rpRes = await window.api.createRestorePoint()
         if (!rpRes.success) {
-          showToast(rpRes.error || 'Nie udało się utworzyć punktu przywracania systemu Windows.', 'error')
+          showToast(
+            rpRes.error || 'Nie udało się utworzyć punktu przywracania systemu Windows.',
+            'error'
+          )
           setRemovingApp(null)
           setCreatingRestorePoint(false)
           return
@@ -61,13 +76,16 @@ export function Bloatware() {
     if (res.success) {
       showToast(`Pomyślnie odinstalowano aplikację: ${app.name}`, 'success')
       setApps((prev) => prev.filter((item) => item.packageFullName !== app.packageFullName))
-      
+
       setScanningLeftovers(true)
       setLastRemovedAppName(app.name)
-      
+
       const scanRes = await window.api.scanLeftovers(app.packageName)
       if (scanRes.success) {
-        if ((scanRes.files && scanRes.files.length > 0) || (scanRes.registry && scanRes.registry.length > 0)) {
+        if (
+          (scanRes.files && scanRes.files.length > 0) ||
+          (scanRes.registry && scanRes.registry.length > 0)
+        ) {
           setLeftovers({
             files: scanRes.files || [],
             registry: scanRes.registry || []
@@ -152,9 +170,17 @@ export function Bloatware() {
     <div className="bloatware-container fade-in">
       {creatingRestorePoint && (
         <div className="restore-point-overlay">
-          <div className="restore-point-card glass-panel flex flex-col items-center justify-center text-center p-xl" style={{ padding: '32px' }}>
-            <div className="loader-spin mb-md" style={{ width: '48px', height: '48px', borderTopColor: 'var(--color-primary)' }}></div>
-            <h3 style={{ margin: '16px 0 8px 0', fontSize: '18px', color: '#fff', fontWeight: 700 }}>
+          <div
+            className="restore-point-card glass-panel flex flex-col items-center justify-center text-center p-xl"
+            style={{ padding: '32px' }}
+          >
+            <div
+              className="loader-spin mb-md"
+              style={{ width: '48px', height: '48px', borderTopColor: 'var(--color-primary)' }}
+            ></div>
+            <h3
+              style={{ margin: '16px 0 8px 0', fontSize: '18px', color: '#fff', fontWeight: 700 }}
+            >
               Kopia zapasowa systemu
             </h3>
             <p className="text-muted text-sm max-w-[360px]" style={{ margin: 0, lineHeight: 1.5 }}>
@@ -242,8 +268,19 @@ export function Bloatware() {
 
         {/* Panel pozostałości po deinstalacji */}
         {scanningLeftovers && (
-          <div className="leftovers-scanning-card glass-panel flex items-center justify-center p-lg mb-lg" style={{ gap: '12px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '18px' }}>
-            <div className="loader-btn-spin" style={{ width: '20px', height: '20px', borderTopColor: 'var(--color-primary)' }}></div>
+          <div
+            className="leftovers-scanning-card glass-panel flex items-center justify-center p-lg mb-lg"
+            style={{
+              gap: '12px',
+              background: 'rgba(255,255,255,0.01)',
+              border: '1px solid rgba(255,255,255,0.03)',
+              borderRadius: '18px'
+            }}
+          >
+            <div
+              className="loader-btn-spin"
+              style={{ width: '20px', height: '20px', borderTopColor: 'var(--color-primary)' }}
+            ></div>
             <span className="text-sm font-semibold text-muted">
               Skanowanie pozostałości (pliki, rejestr) dla {lastRemovedAppName}...
             </span>
@@ -251,7 +288,15 @@ export function Bloatware() {
         )}
 
         {leftovers && (
-          <div className="leftovers-panel glass-panel mb-lg fade-in" style={{ padding: '20px', borderRadius: '18px', border: '1px solid rgba(69, 243, 255, 0.2)', background: 'rgba(69, 243, 255, 0.02)' }}>
+          <div
+            className="leftovers-panel glass-panel mb-lg fade-in"
+            style={{
+              padding: '20px',
+              borderRadius: '18px',
+              border: '1px solid rgba(69, 243, 255, 0.2)',
+              background: 'rgba(69, 243, 255, 0.02)'
+            }}
+          >
             <div className="flex items-center justify-between mb-md flex-wrap gap-md">
               <div className="flex items-center gap-sm">
                 <Sparkles size={20} color="var(--color-primary)" className="pulse-slow" />
@@ -260,7 +305,8 @@ export function Bloatware() {
                     Wykryto pozostałości po {lastRemovedAppName}
                   </h3>
                   <p className="text-muted text-xs" style={{ margin: '2px 0 0 0' }}>
-                    System Windows pozostawił niepotrzebne klucze rejestru oraz foldery danych aplikacji.
+                    System Windows pozostawił niepotrzebne klucze rejestru oraz foldery danych
+                    aplikacji.
                   </p>
                 </div>
               </div>
@@ -295,17 +341,40 @@ export function Bloatware() {
               </div>
             </div>
 
-            <div className="leftovers-lists-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', maxHeight: '200px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+            <div
+              className="leftovers-lists-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '16px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                background: 'rgba(0,0,0,0.2)',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.03)'
+              }}
+            >
               <div>
-                <h4 className="text-xs font-bold uppercase text-muted mb-xs flex items-center gap-xs" style={{ letterSpacing: '1px' }}>
+                <h4
+                  className="text-xs font-bold uppercase text-muted mb-xs flex items-center gap-xs"
+                  style={{ letterSpacing: '1px' }}
+                >
                   <Folder size={12} color="var(--color-warning)" />
                   Katalogi ({leftovers.files.length})
                 </h4>
                 {leftovers.files.length === 0 ? (
-                  <p className="text-xs text-muted" style={{ margin: '4px 0 0 0' }}>Brak wykrytych folderów</p>
+                  <p className="text-xs text-muted" style={{ margin: '4px 0 0 0' }}>
+                    Brak wykrytych folderów
+                  </p>
                 ) : (
                   leftovers.files.map((file, i) => (
-                    <div key={i} className="leftover-item truncate text-xs font-mono" style={{ padding: '4px 0', color: 'rgba(255,255,255,0.6)' }} title={file}>
+                    <div
+                      key={i}
+                      className="leftover-item truncate text-xs font-mono"
+                      style={{ padding: '4px 0', color: 'rgba(255,255,255,0.6)' }}
+                      title={file}
+                    >
                       {file}
                     </div>
                   ))
@@ -313,15 +382,25 @@ export function Bloatware() {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold uppercase text-muted mb-xs flex items-center gap-xs" style={{ letterSpacing: '1px' }}>
+                <h4
+                  className="text-xs font-bold uppercase text-muted mb-xs flex items-center gap-xs"
+                  style={{ letterSpacing: '1px' }}
+                >
                   <Database size={12} color="var(--color-primary)" />
                   Rejestr Windows ({leftovers.registry.length})
                 </h4>
                 {leftovers.registry.length === 0 ? (
-                  <p className="text-xs text-muted" style={{ margin: '4px 0 0 0' }}>Brak wykrytych wpisów</p>
+                  <p className="text-xs text-muted" style={{ margin: '4px 0 0 0' }}>
+                    Brak wykrytych wpisów
+                  </p>
                 ) : (
                   leftovers.registry.map((reg, i) => (
-                    <div key={i} className="leftover-item truncate text-xs font-mono" style={{ padding: '4px 0', color: 'rgba(255,255,255,0.6)' }} title={reg}>
+                    <div
+                      key={i}
+                      className="leftover-item truncate text-xs font-mono"
+                      style={{ padding: '4px 0', color: 'rgba(255,255,255,0.6)' }}
+                      title={reg}
+                    >
                       {reg}
                     </div>
                   ))

@@ -138,6 +138,14 @@ function mapHardwareToWinget(driver: any): string | null {
   return null
 }
 
+async function runElevatedPowerShellScript(script: string): Promise<void> {
+  const buffer = Buffer.from(script, 'utf16le')
+  const base64 = buffer.toString('base64')
+  const psCommand = `Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ${base64}' -Verb RunAs -Wait`
+  const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`
+  await execAsync(command)
+}
+
 export function setupDriversIPC() {
   // 1. Wykrywanie sterowników systemowych przez PowerShell
   ipcMain.handle('get-system-drivers', async () => {
@@ -304,11 +312,8 @@ export function setupDriversIPC() {
       const targetDir = filePaths[0]
       console.log(`[Drivers IPC] Exporting drivers to: ${targetDir}`)
 
-      const targetPathEscaped = targetDir.replace(/"/g, '\\"')
-      const psCommand = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command \\"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; pnputil /export-driver * \\'\\"${targetPathEscaped}\\'\\"\\"' -Verb RunAs -Wait`
-      const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`
-      
-      await execAsync(command)
+      const script = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; pnputil /export-driver * "${targetDir}"`
+      await runElevatedPowerShellScript(script)
       return { success: true, canceled: false }
     } catch (err: any) {
       console.error('[Drivers IPC] Failed to export drivers:', err)
@@ -334,11 +339,8 @@ export function setupDriversIPC() {
       const sourceDir = filePaths[0]
       console.log(`[Drivers IPC] Restoring drivers from: ${sourceDir}`)
 
-      const sourcePathEscaped = sourceDir.replace(/"/g, '\\"')
-      const psCommand = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command \\"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; pnputil /add-driver \\'\\"${sourcePathEscaped}\\*.inf\\'\\" /subdirs /install\\"' -Verb RunAs -Wait`
-      const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`
-
-      await execAsync(command)
+      const script = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; pnputil /add-driver "${sourceDir}\\*.inf" /subdirs /install`
+      await runElevatedPowerShellScript(script)
       return { success: true, canceled: false }
     } catch (err: any) {
       console.error('[Drivers IPC] Failed to restore drivers:', err)
@@ -366,10 +368,8 @@ export function setupDriversIPC() {
       }
 
       console.log(`[Drivers IPC] Restoring drivers from Windows.old: ${winOldPath}`)
-      const psCommand = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command \\"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; pnputil /add-driver \\'\\"${winOldPath}\\*.inf\\'\\" /subdirs /install\\"' -Verb RunAs -Wait`
-      const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`
-
-      await execAsync(command)
+      const script = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; pnputil /add-driver "${winOldPath}\\*.inf" /subdirs /install`
+      await runElevatedPowerShellScript(script)
       return { success: true }
     } catch (err: any) {
       console.error('[Drivers IPC] Failed to restore drivers from Windows.old:', err)
@@ -472,19 +472,14 @@ export function setupDriversIPC() {
       console.log(`[Drivers IPC] Installing offline drivers from ZIP: ${zipPath}`)
       const tempExtractDir = path.join(process.env.TEMP || 'C:\\Windows\\Temp', 'updaterwin_network_drivers')
       
-      const tempExtractDirEscaped = tempExtractDir.replace(/"/g, '\\"')
-      const zipPathEscaped = zipPath.replace(/"/g, '\\"')
+      const script = 
+        `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ` +
+        `New-Item -ItemType Directory -Force -Path "${tempExtractDir}"; ` +
+        `Expand-Archive -Path "${zipPath}" -DestinationPath "${tempExtractDir}" -Force; ` +
+        `pnputil /add-driver "${tempExtractDir}\\*.inf" /subdirs /install; ` +
+        `Remove-Item -Path "${tempExtractDir}" -Recurse -Force`
 
-      const psScript = 
-        `New-Item -ItemType Directory -Force -Path \\'\\"${tempExtractDirEscaped}\\'\\"; ` +
-        `Expand-Archive -Path \\'\\"${zipPathEscaped}\\'\\" -DestinationPath \\'\\"${tempExtractDirEscaped}\\'\\" -Force; ` +
-        `pnputil /add-driver \\'\\"${tempExtractDirEscaped}\\*.inf\\'\\" /subdirs /install; ` +
-        `Remove-Item -Path \\'\\"${tempExtractDirEscaped}\\'\\" -Recurse -Force`
-
-      const psCommand = `Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command \\"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${psScript}\\"' -Verb RunAs -Wait`
-      const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`
-
-      await execAsync(command)
+      await runElevatedPowerShellScript(script)
       return { success: true }
     } catch (err: any) {
       console.error('[Drivers IPC] Failed to install offline pack:', err)

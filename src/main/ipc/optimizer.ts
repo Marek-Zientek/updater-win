@@ -602,7 +602,7 @@ export function setupOptimizerIPC(): void {
   // 3. Pobieranie programów z autostartu (HKCU Run)
   ipcMain.handle('get-startup-apps', async () => {
     const psCommand = `
-      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
       $runKey = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
       $items = @()
       if (Test-Path $runKey) {
@@ -939,7 +939,7 @@ export function setupOptimizerIPC(): void {
     }
 
     const psCommand = `
-      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
       Get-CimInstance -ClassName Win32_Service | 
       Select-Object Name, DisplayName, State, StartMode, Description | 
       ConvertTo-Json -Compress

@@ -127,13 +127,49 @@ npm run build:win
 
 ---
 
-## 🚀 Uruchomienie deweloperskie
+## 🚀 Uruchomienie deweloperskie (Uruchamianie ze źródeł)
 
-Aby uruchomić aplikację w trybie deweloperskim z przeładowywaniem na żywo (Hot Reload):
+Jeśli pobrałeś kod źródłowy projektu (np. jako plik ZIP lub przez `git clone`), możesz uruchomić aplikację dewelopersko w systemie Windows na dwa sposoby:
 
-```bash
-npm run dev
-```
+### Sposób A: Automatyczne skrypty (Najprostszy i bezproblemowy)
+W głównym folderze projektu przygotowaliśmy skrypty `.bat`, które automatycznie otwierają konsolę w odpowiednim folderze i omijają blokady bezpieczeństwa PowerShell:
+1. Kliknij dwukrotnie plik **`instaluj-zaleznosci.bat`** (zainstaluje wymagane biblioteki).
+2. Kliknij dwukrotnie plik **`uruchom-dewelopersko.bat`** (uruchomi aplikację w trybie testowym).
+
+---
+
+### Sposób B: Ręczne uruchomienie w konsoli
+1. Upewnij się, że masz zainstalowany program **Node.js** na swoim komputerze.
+2. Otwórz konsolę (np. PowerShell lub CMD) i przejdź do folderu z projektem:
+   ```powershell
+   cd "C:\Sciezka\Do\Katalogu\updater-win-master"
+   ```
+3. Zainstaluj wymagane zależności:
+   ```powershell
+   npm install
+   ```
+4. Uruchom aplikację:
+   ```powershell
+   npm run dev
+   ```
+
+---
+
+## 🔍 Rozwiązywanie problemów (Troubleshooting)
+
+### 1. Błąd: `File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled...`
+Ten błąd oznacza, że system Windows blokuje uruchamianie skryptów PowerShell. 
+* **Rozwiązanie 1**: Uruchom pliki skrótów **`instaluj-zaleznosci.bat`** oraz **`uruchom-dewelopersko.bat`** zamiast ręcznego wpisywania komend. Batche uruchamiają się w CMD i nie są blokowane.
+* **Rozwiązanie 2**: Otwórz konsolę PowerShell i wpisz:
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
+  Zatwierdź wpisując `T` (lub `Y`), co odblokuje wykonywanie skryptów dla Twojego konta.
+* **Rozwiązanie 3**: Przejdź do folderu `C:\Program Files\nodejs\` i usuń plik `npm.ps1`. PowerShell automatycznie zacznie korzystać z bezpiecznego pliku `npm.cmd`.
+
+### 2. Błąd: `npm error code ENOENT ... open 'C:\Users\...\package.json'`
+Uruchomiłeś komendę `npm install` lub `npm run dev` w złym folderze (np. bezpośrednio w profilu użytkownika `C:\Users\PC`).
+* **Rozwiązanie**: Upewnij się, że przed wpisaniem komendy przeszedłeś do właściwego folderu projektu za pomocą komendy `cd` (np. `cd C:\Users\PC\Desktop\updater-win-master`).
 
 ---
 

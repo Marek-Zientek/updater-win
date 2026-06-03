@@ -45,6 +45,21 @@ const api = {
   getSystemDrivers: () => ipcRenderer.invoke('get-system-drivers'),
   getDriverUpdates: () => ipcRenderer.invoke('get-driver-updates'),
   upgradeDriver: (wingetId: string) => ipcRenderer.invoke('upgrade-driver', wingetId),
+  exportDrivers: () => ipcRenderer.invoke('export-drivers'),
+  restoreDrivers: () => ipcRenderer.invoke('restore-drivers'),
+  checkWindowsOldDrivers: () => ipcRenderer.invoke('check-windows-old-drivers'),
+  restoreWindowsOldDrivers: () => ipcRenderer.invoke('restore-windows-old-drivers'),
+  checkOfflinePack: () => ipcRenderer.invoke('check-offline-pack'),
+  downloadOfflinePack: () => ipcRenderer.invoke('download-offline-pack'),
+  pickOfflinePackZip: () => ipcRenderer.invoke('pick-offline-pack-zip'),
+  installOfflinePack: (customPath?: string) => ipcRenderer.invoke('install-offline-pack', customPath),
+  onOfflinePackDownloadProgress: (callback: (data: any) => void) => {
+    const subscription = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('offline-pack-download-progress', subscription)
+    return () => {
+      ipcRenderer.removeListener('offline-pack-download-progress', subscription)
+    }
+  },
   getCleanupStats: () => ipcRenderer.invoke('get-cleanup-stats'),
   runCleanup: () => ipcRenderer.invoke('run-cleanup'),
   getStartupApps: () => ipcRenderer.invoke('get-startup-apps'),

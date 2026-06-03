@@ -62,6 +62,15 @@ export interface IHardwareAPI {
   getSystemDrivers: () => Promise<{ success: boolean; data: any[]; error?: string }>
   getDriverUpdates: () => Promise<{ success: boolean; data: any[]; error?: string }>
   upgradeDriver: (wingetId: string) => Promise<{ success: boolean; error?: string }>
+  exportDrivers: () => Promise<{ success: boolean; canceled?: boolean; error?: string }>
+  restoreDrivers: () => Promise<{ success: boolean; canceled?: boolean; error?: string }>
+  checkWindowsOldDrivers: () => Promise<{ success: boolean; exists: boolean; path?: string; error?: string }>
+  restoreWindowsOldDrivers: () => Promise<{ success: boolean; error?: string }>
+  checkOfflinePack: () => Promise<{ success: boolean; exists: boolean; path?: string; fileName?: string; error?: string }>
+  downloadOfflinePack: () => Promise<{ success: boolean; path?: string; error?: string }>
+  pickOfflinePackZip: () => Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }>
+  installOfflinePack: (customPath?: string) => Promise<{ success: boolean; error?: string }>
+  onOfflinePackDownloadProgress: (callback: (data: { percent: number; loaded: number; total: number }) => void) => () => void
   getCleanupStats: () => Promise<{
     success: boolean
     data: { tempSize: number; logSize: number; cacheSize: number }

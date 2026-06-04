@@ -73,22 +73,59 @@ export function Layout({
 
   const isActive = (path: string): boolean => location.pathname === path
 
-  const navLinks = [
-    { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { to: '/software', label: 'Oprogramowanie', icon: <Package size={20} /> },
-    { to: '/multi-installer', label: 'Szybki Instalator', icon: <DownloadCloud size={20} /> },
-    { to: '/hardware', label: 'Sprzęt', icon: <Cpu size={20} />, subLinks: true },
-    { to: '/performance', label: 'Wydajność', icon: <BarChart2 size={20} /> },
-    { to: '/optimizer', label: 'Optymalizator', icon: <Gauge size={20} /> },
-    { to: '/ram-cleaner', label: 'Optymalizacja RAM', icon: <Layers size={20} /> },
-    { to: '/services-manager', label: 'Usługi & Autostart', icon: <Sliders size={20} /> },
-    { to: '/bloatware', label: 'Bloatware', icon: <Trash2 size={20} /> },
-    { to: '/network', label: 'Sieć', icon: <Globe size={20} /> },
-    { to: '/peripherals', label: 'Urządzenia', icon: <Gamepad size={20} /> },
-    { to: '/backup', label: 'Kopia zapasowa', icon: <Database size={20} /> },
-    { to: '/diagnostics', label: 'Diagnostyka', icon: <Activity size={20} /> },
-    { to: '/update-hub', label: 'Aktualizacje Windows', icon: <Clock size={20} /> },
-    { to: '/settings', label: 'Ustawienia', icon: <SettingsIcon size={20} /> }
+  interface NavLink {
+    to: string
+    label: string
+    icon: React.ReactNode
+    subLinks?: boolean
+  }
+
+  interface NavGroup {
+    id: string
+    title: string
+    links: NavLink[]
+  }
+
+  const navGroups: NavGroup[] = [
+    {
+      id: 'general',
+      title: 'Ogólne',
+      links: [
+        { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { to: '/settings', label: 'Ustawienia', icon: <SettingsIcon size={20} /> }
+      ]
+    },
+    {
+      id: 'optimization',
+      title: 'Optymalizacja',
+      links: [
+        { to: '/optimizer', label: 'Optymalizator', icon: <Gauge size={20} /> },
+        { to: '/ram-cleaner', label: 'Optymalizacja RAM', icon: <Layers size={20} /> },
+        { to: '/services-manager', label: 'Usługi & Autostart', icon: <Sliders size={20} /> },
+        { to: '/bloatware', label: 'Bloatware', icon: <Trash2 size={20} /> }
+      ]
+    },
+    {
+      id: 'system',
+      title: 'System i Sprzęt',
+      links: [
+        { to: '/hardware', label: 'Sprzęt', icon: <Cpu size={20} />, subLinks: true },
+        { to: '/performance', label: 'Wydajność', icon: <BarChart2 size={20} /> },
+        { to: '/peripherals', label: 'Urządzenia', icon: <Gamepad size={20} /> },
+        { to: '/update-hub', label: 'Aktualizacje Windows', icon: <Clock size={20} /> }
+      ]
+    },
+    {
+      id: 'maintenance',
+      title: 'Konserwacja i Narzędzia',
+      links: [
+        { to: '/software', label: 'Oprogramowanie', icon: <Package size={20} /> },
+        { to: '/multi-installer', label: 'Szybki Instalator', icon: <DownloadCloud size={20} /> },
+        { to: '/network', label: 'Sieć', icon: <Globe size={20} /> },
+        { to: '/backup', label: 'Kopia zapasowa', icon: <Database size={20} /> },
+        { to: '/diagnostics', label: 'Diagnostyka', icon: <Activity size={20} /> }
+      ]
+    }
   ]
 
   return (
@@ -162,17 +199,42 @@ export function Layout({
               </div>
             </div>
           )}
-          <nav className="mobile-nav flex-col gap-sm">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`nav-link ${isActive(link.to) || (link.to !== '/' && location.pathname.startsWith(link.to)) ? 'active' : ''}`}
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.icon}
-                <span>{link.label}</span>
-              </Link>
+          <nav
+            className="mobile-nav flex-col sidebar-nav-scroll"
+            style={{
+              gap: '20px',
+              overflowY: 'auto',
+              maxHeight: 'calc(100vh - 180px)',
+              paddingRight: '4px'
+            }}
+          >
+            {navGroups.map((group) => (
+              <div key={group.id} className="flex-col" style={{ display: 'flex', gap: '6px' }}>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    color: 'var(--color-text-muted)',
+                    paddingLeft: '16px',
+                    opacity: 0.8
+                  }}
+                >
+                  {group.title}
+                </div>
+                {group.links.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`nav-link ${isActive(link.to) || (link.to !== '/' && location.pathname.startsWith(link.to)) ? 'active' : ''}`}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {link.icon}
+                    <span>{link.label}</span>
+                  </Link>
+                ))}
+              </div>
             ))}
             <button
               className="nav-link w-100"
@@ -291,57 +353,93 @@ export function Layout({
           )}
 
           <nav
-            className="flex-col gap-sm"
-            style={{ flex: 1, display: 'flex', alignItems: isCollapsed ? 'center' : 'stretch' }}
+            className="flex-col sidebar-nav-scroll"
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: isCollapsed ? 'center' : 'stretch',
+              overflowY: 'auto',
+              paddingRight: isCollapsed ? '0' : '4px',
+              gap: isCollapsed ? '16px' : '20px'
+            }}
           >
-            {navLinks.map((link) => {
-              const active =
-                isActive(link.to) || (link.to !== '/' && location.pathname.startsWith(link.to))
-              return (
-                <div key={link.to} style={{ width: '100%' }}>
-                  <Link
-                    to={link.to}
-                    className={`nav-link ${active ? 'active' : ''}`}
-                    title={isCollapsed ? link.label : undefined}
+            {navGroups.map((group, groupIdx) => (
+              <div
+                key={group.id}
+                className="flex-col"
+                style={{
+                  display: 'flex',
+                  gap: '4px',
+                  width: '100%',
+                  borderTop: isCollapsed && groupIdx > 0 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                  paddingTop: isCollapsed && groupIdx > 0 ? '16px' : '0'
+                }}
+              >
+                {!isCollapsed && (
+                  <div
                     style={{
-                      justifyContent: isCollapsed ? 'center' : 'flex-start',
-                      padding: isCollapsed ? '12px' : '12px 16px'
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      color: 'var(--color-text-muted)',
+                      padding: '0 12px 6px 12px',
+                      opacity: 0.8
                     }}
                   >
-                    {link.icon}
-                    {!isCollapsed && <span>{link.label}</span>}
-                  </Link>
+                    {group.title}
+                  </div>
+                )}
+                {group.links.map((link) => {
+                  const active =
+                    isActive(link.to) || (link.to !== '/' && location.pathname.startsWith(link.to))
+                  return (
+                    <div key={link.to} style={{ width: '100%' }}>
+                      <Link
+                        to={link.to}
+                        className={`nav-link ${active ? 'active' : ''}`}
+                        title={isCollapsed ? link.label : undefined}
+                        style={{
+                          justifyContent: isCollapsed ? 'center' : 'flex-start',
+                          padding: isCollapsed ? '12px' : '10px 16px'
+                        }}
+                      >
+                        {link.icon}
+                        {!isCollapsed && <span>{link.label}</span>}
+                      </Link>
 
-                  {/* Submenu for Hardware - only shown when expanded */}
-                  {!isCollapsed && link.subLinks && location.pathname.startsWith('/hardware') && (
-                    <div className="submenu-container">
-                      <HardwareSubLink
-                        icon={<Grid size={14} />}
-                        label="Podsumowanie"
-                        tab="summary"
-                      />
-                      <HardwareSubLink icon={<CpuIcon size={14} />} label="Procesor" tab="cpu" />
-                      <HardwareSubLink
-                        icon={<Layers size={14} />}
-                        label="Płyta Główna"
-                        tab="mobo"
-                      />
-                      <HardwareSubLink icon={<Database size={14} />} label="Pamięć RAM" tab="ram" />
-                      <HardwareSubLink icon={<Fan size={14} />} label="Chłodzenie" tab="cooling" />
-                      <HardwareSubLink icon={<Zap size={14} />} label="Grafika" tab="gpu" />
-                      <HardwareSubLink icon={<HardDrive size={14} />} label="Dyski" tab="disks" />
-                      <HardwareSubLink icon={<Globe size={14} />} label="Sieć" tab="network" />
-                      <HardwareSubLink icon={<Info size={14} />} label="System" tab="system" />
-                      <HardwareSubLink
-                        icon={<Gauge size={14} />}
-                        label="Benchmark"
-                        tab="benchmark"
-                      />
+                      {/* Submenu for Hardware - only shown when expanded */}
+                      {!isCollapsed && link.subLinks && location.pathname.startsWith('/hardware') && (
+                        <div className="submenu-container">
+                          <HardwareSubLink
+                            icon={<Grid size={14} />}
+                            label="Podsumowanie"
+                            tab="summary"
+                          />
+                          <HardwareSubLink icon={<CpuIcon size={14} />} label="Procesor" tab="cpu" />
+                          <HardwareSubLink
+                            icon={<Layers size={14} />}
+                            label="Płyta Główna"
+                            tab="mobo"
+                          />
+                          <HardwareSubLink icon={<Database size={14} />} label="Pamięć RAM" tab="ram" />
+                          <HardwareSubLink icon={<Fan size={14} />} label="Chłodzenie" tab="cooling" />
+                          <HardwareSubLink icon={<Zap size={14} />} label="Grafika" tab="gpu" />
+                          <HardwareSubLink icon={<HardDrive size={14} />} label="Dyski" tab="disks" />
+                          <HardwareSubLink icon={<Globe size={14} />} label="Sieć" tab="network" />
+                          <HardwareSubLink icon={<Info size={14} />} label="System" tab="system" />
+                          <HardwareSubLink
+                            icon={<Gauge size={14} />}
+                            label="Benchmark"
+                            tab="benchmark"
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            ))}
           </nav>
 
           <div
@@ -522,6 +620,19 @@ export function Layout({
           flex-direction: column;
           gap: 8px;
           width: 100%;
+        }
+        .sidebar-nav-scroll::-webkit-scrollbar {
+          width: 4px;
+        }
+        .sidebar-nav-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .sidebar-nav-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 2px;
+        }
+        .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.15);
         }
         @keyframes slideDown {
           from {

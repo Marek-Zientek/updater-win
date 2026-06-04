@@ -146,7 +146,7 @@ function createTray(): void {
       label: 'Sprawdź aktualizacje teraz',
       click: async (): Promise<void> => {
         new Notification({
-          title: 'UpdaterWindows',
+          title: 'CorePulse',
           body: 'Sprawdzanie aktualizacji w tle...',
           icon: icon
         }).show()
@@ -191,7 +191,7 @@ function createTray(): void {
     }
   ])
 
-  tray.setToolTip('UpdaterWindows')
+  tray.setToolTip('CorePulse')
   tray.setContextMenu(contextMenu)
 
   tray.on('click', () => {
@@ -290,7 +290,7 @@ app.whenReady().then(async () => {
   await initializeDatabase()
 
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.corepulse.app')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

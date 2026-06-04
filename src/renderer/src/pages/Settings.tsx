@@ -452,7 +452,7 @@ export function Settings() {
             Ustawienia Aplikacji
           </h1>
           <p className="text-muted" style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
-            Dostosuj zachowanie i automatyzację UpdaterWindows
+            Dostosuj zachowanie i automatyzację CorePulse
           </p>
         </div>
         {saveSuccess && (
@@ -1839,7 +1839,7 @@ export function Settings() {
                 Audyt Przechowywania Danych (Lokalna Baza)
               </h4>
               <p style={{ margin: 0 }}>
-                Aplikacja **UpdaterWindows** została zaprojektowana w architekturze{' '}
+                Aplikacja **CorePulse** została zaprojektowana w architekturze{' '}
                 <strong>Local-First</strong>. Wszystkie Twoje ustawienia, spersonalizowane listy
                 oprogramowania oraz historia optymalizacji są zapisywane wyłącznie lokalnie w bazie
                 danych SQLite (<code>database.db</code>) znajdującej się w Twoim katalogu profilu

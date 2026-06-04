@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import appIcon from '../assets/icon.png'
 import {
   LayoutDashboard,
   Package,
@@ -99,24 +100,18 @@ export function Layout({
       {isMobile && (
         <header className="mobile-header glass-panel">
           <div className="flex items-center gap-md">
-            <div
+            <img
+              src={appIcon}
+              alt="CorePulse Logo"
               style={{
                 width: '32px',
                 height: '32px',
-                background: 'var(--color-primary)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 10px var(--color-primary-glow)'
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 8px var(--color-primary-glow))'
               }}
-            >
-              <span style={{ color: 'var(--color-bg-main)', fontWeight: 'bold', fontSize: '16px' }}>
-                U
-              </span>
-            </div>
+            />
             <h2 className="text-gradient" style={{ margin: 0, fontSize: '18px' }}>
-              UpdaterWin
+              CorePulse
             </h2>
           </div>
           <button className="hamburger-btn" onClick={() => setMenuOpen(!menuOpen)}>
@@ -221,25 +216,19 @@ export function Layout({
               justifyContent: isCollapsed ? 'center' : 'flex-start'
             }}
           >
-            <div
+            <img
+              src={appIcon}
+              alt="CorePulse Logo"
               style={{
                 width: '40px',
                 height: '40px',
-                background: 'var(--color-primary)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 15px var(--color-primary-glow)'
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 10px var(--color-primary-glow))'
               }}
-            >
-              <span style={{ color: 'var(--color-bg-main)', fontWeight: 'bold', fontSize: '20px' }}>
-                U
-              </span>
-            </div>
+            />
             {!isCollapsed && (
               <h2 className="text-gradient" style={{ margin: 0 }}>
-                UpdaterWin
+                CorePulse
               </h2>
             )}
           </div>

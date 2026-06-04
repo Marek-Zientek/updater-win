@@ -527,7 +527,7 @@ export function Backup() {
             <div>
               <h2 className="flex items-center gap-sm mb-md" style={{ fontSize: '18px', margin: 0 }}>
                 <Database size={20} style={{ color: 'var(--color-secondary)' }} />
-                Kopia profilu UpdaterWindows
+                Kopia profilu CorePulse
               </h2>
               <p className="panel-desc text-muted mb-lg">
                 Eksportuj swoje oceny oprogramowania, recenzje, własne tagi, kategorie oraz

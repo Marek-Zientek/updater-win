@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import appIcon from '../assets/icon.png'
 
 export function Register() {
   const [name, setName] = useState('')
@@ -32,24 +33,18 @@ export function Register() {
     <div className="flex items-center justify-center" style={{ height: '100vh', width: '100vw' }}>
       <div className="glass-panel" style={{ padding: '48px', width: '100%', maxWidth: '420px' }}>
         <div className="flex flex-col items-center gap-md" style={{ marginBottom: '32px' }}>
-          <div
+          <img
+            src={appIcon}
+            alt="CorePulse Logo"
             style={{
               width: '64px',
               height: '64px',
-              background: 'var(--color-primary)',
-              borderRadius: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 20px var(--color-primary-glow)'
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 12px var(--color-primary-glow))'
             }}
-          >
-            <span style={{ color: 'var(--color-bg-main)', fontWeight: 'bold', fontSize: '32px' }}>
-              U
-            </span>
-          </div>
+          />
           <h1 className="text-gradient" style={{ margin: 0, fontSize: '32px' }}>
-            UpdaterWin
+            CorePulse
           </h1>
           <p className="text-muted">Utwórz konto administratora</p>
         </div>

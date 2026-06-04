@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: my-app
+appId: com.corepulse.app
+productName: CorePulse
 directories:
   buildResources: build
 files:
@@ -17,7 +17,7 @@ extraResources:
   - from: node_modules/@prisma
     to: node_modules/@prisma
 win:
-  executableName: my-app
+  executableName: CorePulse
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

@@ -170,7 +170,7 @@ export function PerformanceHUD() {
     >
       <header className="hud-header">
         <Activity size={14} className="pulse-icon" />
-        <span>UpdaterWin HUD</span>
+        <span>CorePulse HUD</span>
       </header>
 
       <div className="hud-rows-list">

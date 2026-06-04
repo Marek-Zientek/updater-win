@@ -339,7 +339,7 @@ export default function Diagnostics(): React.ReactElement {
                 }}
               >
                 System plików Windows może ulec uszkodzeniu przez nagłe braki prądu, awarie dysków
-                lub błędy oprogramowania. UpdaterWin udostępnia proste wywołanie natywnych silników
+                lub błędy oprogramowania. CorePulse udostępnia proste wywołanie natywnych silników
                 weryfikacyjnych Microsoftu:
               </p>
 
